@@ -129,6 +129,8 @@ type SendParams struct {
 	DomainID    string            `json:"domainId"`
 	CC          interface{}       `json:"cc,omitempty"`
 	TemplateID  string            `json:"templateId,omitempty"`
+	// Template language code (e.g. "en", "tr"). Falls back to default if omitted.
+	Lang        string              `json:"lang,omitempty"`
 	HTML        string            `json:"html,omitempty"`
 	Text        string            `json:"text,omitempty"`
 	Variables   map[string]string `json:"variables,omitempty"`

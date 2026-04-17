@@ -80,6 +80,25 @@ templates, err := client.Templates.List()
 template, err := client.Templates.Get("template-id")
 ```
 
+Templates support multiple languages. A field like `Name` or `Subject` can be a plain string or a `map[string]string` keyed by language code:
+
+```jsonc
+// Example template response
+{
+  "id": "b3f1a2c4-...",
+  "name": { "en": "Welcome Email", "tr": "Hosgeldin E-postasi" },
+  "subject": { "en": "Welcome, {{name}}!", "tr": "Hosgeldin, {{name}}!" },
+  "mjmlBody": { "en": "<mjml>...</mjml>", "tr": "<mjml>...</mjml>" },
+  "variables": ["name", "company"],
+  "domainId": "a1b2c3d4-...",
+  "domainName": "example.com",
+  "createdAt": "2026-01-15T10:30:00.000Z",
+  "updatedAt": "2026-04-10T14:22:00.000Z"
+}
+```
+
+Use the `Variables` field to know which placeholders (`{{name}}`, `{{company}}`) the template expects.
+
 ### Inbox
 
 ```go
@@ -130,6 +149,17 @@ result, err := client.Send.Email(sentroy.SendParams{
         "name":    "John",
         "company": "Acme",
     },
+})
+
+// Send with a specific language
+result, err = client.Send.Email(sentroy.SendParams{
+    To:         "user@example.com",
+    From:       "info@example.com",
+    Subject:    "Hosgeldin!",
+    DomainID:   "domain-id",
+    TemplateID: "template-id",
+    Lang:       "tr",
+    Variables:  map[string]string{"name": "Ahmet"},
 })
 
 // Send with raw HTML

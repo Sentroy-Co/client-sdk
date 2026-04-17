@@ -65,6 +65,23 @@ templates = sentroy.templates.list()
 template = sentroy.templates.get("template-id")
 ```
 
+Templates support multiple languages. A field like `name` or `subject` can be a plain string or a dict keyed by language code:
+
+```python
+# Example template response
+{
+    "id": "b3f1a2c4-...",
+    "name": {"en": "Welcome Email", "tr": "Hosgeldin E-postasi"},
+    "subject": {"en": "Welcome, {{name}}!", "tr": "Hosgeldin, {{name}}!"},
+    "mjmlBody": {"en": "<mjml>...</mjml>", "tr": "<mjml>...</mjml>"},
+    "variables": ["name", "company"],
+    "domainId": "a1b2c3d4-...",
+    "domainName": "example.com"
+}
+```
+
+Use the `variables` list to know which placeholders (`{{name}}`, `{{company}}`) the template expects.
+
 ### Inbox
 
 ```python
@@ -114,6 +131,17 @@ result = sentroy.send.email(SendParams(
         "name": "John",
         "company": "Acme",
     },
+))
+
+# Send with a specific language
+result = sentroy.send.email(SendParams(
+    to="user@example.com",
+    from_addr="info@example.com",
+    subject="Hosgeldin!",
+    domain_id="domain-id",
+    template_id="template-id",
+    lang="tr",
+    variables={"name": "Ahmet"},
 ))
 
 # Send with raw HTML

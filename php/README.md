@@ -42,7 +42,7 @@ $sentroy = new Sentroy([
 
 ```php
 // List all domains
-$domains = $sentroy->domains->list();
+$domains = $sentroy->domains->getAll();
 
 // Get a single domain
 $domain = $sentroy->domains->get('domain-id');
@@ -52,18 +52,35 @@ $domain = $sentroy->domains->get('domain-id');
 
 ```php
 // List all mailbox accounts
-$mailboxes = $sentroy->mailboxes->list();
+$mailboxes = $sentroy->mailboxes->getAll();
 ```
 
 ### Templates
 
 ```php
 // List all templates
-$templates = $sentroy->templates->list();
+$templates = $sentroy->templates->getAll();
 
 // Get a template by ID
 $template = $sentroy->templates->get('template-id');
 ```
+
+Templates support multiple languages. A field like `name` or `subject` can be a plain string or an associative array keyed by language code:
+
+```php
+// Example template response
+[
+    'id' => 'b3f1a2c4-...',
+    'name' => ['en' => 'Welcome Email', 'tr' => 'Hosgeldin E-postasi'],
+    'subject' => ['en' => 'Welcome, {{name}}!', 'tr' => 'Hosgeldin, {{name}}!'],
+    'mjmlBody' => ['en' => '<mjml>...</mjml>', 'tr' => '<mjml>...</mjml>'],
+    'variables' => ['name', 'company'],
+    'domainId' => 'a1b2c3d4-...',
+    'domainName' => 'example.com',
+]
+```
+
+Use the `variables` array to know which placeholders (`{{name}}`, `{{company}}`) the template expects.
 
 ### Inbox
 
@@ -115,6 +132,17 @@ $result = $sentroy->send->email([
         'name' => 'John',
         'company' => 'Acme',
     ],
+]);
+
+// Send with a specific language
+$result = $sentroy->send->email([
+    'to' => 'user@example.com',
+    'from' => 'info@example.com',
+    'subject' => 'Hosgeldin!',
+    'domainId' => 'domain-id',
+    'templateId' => 'template-id',
+    'lang' => 'tr',
+    'variables' => ['name' => 'Ahmet'],
 ]);
 
 // Send with raw HTML
@@ -169,7 +197,7 @@ try {
 
 ## Requirements
 
-- PHP 8.1+
+- PHP 7.0+
 - `ext-curl`
 - `ext-json`
 

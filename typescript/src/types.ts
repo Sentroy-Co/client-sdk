@@ -138,6 +138,8 @@ export interface SendParams {
   domainId: string
   cc?: string | string[]
   templateId?: string
+  /** Template language code (e.g. "en", "tr"). Falls back to default if omitted. */
+  lang?: string
   html?: string
   text?: string
   variables?: Record<string, string>

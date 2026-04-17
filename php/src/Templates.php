@@ -17,7 +17,7 @@ class Templates
      *
      * @return array
      */
-    public function list()
+    public function getAll()
     {
         return $this->http->get('/templates');
     }

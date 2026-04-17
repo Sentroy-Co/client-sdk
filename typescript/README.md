@@ -66,6 +66,25 @@ const templates = await sentroy.templates.list()
 const template = await sentroy.templates.get("template-id")
 ```
 
+Templates support multiple languages via `LocalizedString`. A field can be a plain string or an object keyed by language code:
+
+```jsonc
+// Example template response
+{
+  "id": "b3f1a2c4-...",
+  "name": { "en": "Welcome Email", "tr": "Hosgeldin E-postasi" },
+  "subject": { "en": "Welcome, {{name}}!", "tr": "Hosgeldin, {{name}}!" },
+  "mjmlBody": { "en": "<mjml>...</mjml>", "tr": "<mjml>...</mjml>" },
+  "variables": ["name", "company"],
+  "domainId": "a1b2c3d4-...",
+  "domainName": "example.com",
+  "createdAt": "2026-01-15T10:30:00.000Z",
+  "updatedAt": "2026-04-10T14:22:00.000Z"
+}
+```
+
+Use the `variables` array to know which placeholders (`{{name}}`, `{{company}}`) the template expects.
+
 ### Inbox
 
 ```ts
@@ -105,7 +124,7 @@ await sentroy.inbox.delete(1234, { mailbox: "info@example.com" })
 ### Send Email
 
 ```ts
-// Send with a template
+// Send with a template (uses default language)
 const result = await sentroy.send.email({
   to: "user@example.com",
   from: "info@example.com",
@@ -116,6 +135,17 @@ const result = await sentroy.send.email({
     name: "John",
     company: "Acme",
   },
+})
+
+// Send with a specific language
+const result = await sentroy.send.email({
+  to: "user@example.com",
+  from: "info@example.com",
+  subject: "Hosgeldin!",
+  domainId: "domain-id",
+  templateId: "template-id",
+  lang: "tr",
+  variables: { name: "Ahmet" },
 })
 
 // Send with raw HTML

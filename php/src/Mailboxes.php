@@ -17,7 +17,7 @@ class Mailboxes
      *
      * @return array
      */
-    public function list()
+    public function getAll()
     {
         return $this->http->get('/mailboxes');
     }

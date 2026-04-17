@@ -242,6 +242,7 @@ class SendParams:
     domain_id: str
     cc: Optional[Union[str, list[str]]] = None
     template_id: Optional[str] = None
+    lang: Optional[str] = None  # Template language code (e.g. "en", "tr")
     html: Optional[str] = None
     text: Optional[str] = None
     variables: Optional[dict[str, str]] = None
@@ -263,6 +264,8 @@ class SendParams:
             d["cc"] = self.cc
         if self.template_id is not None:
             d["templateId"] = self.template_id
+        if self.lang is not None:
+            d["lang"] = self.lang
         if self.html is not None:
             d["html"] = self.html
         if self.text is not None:

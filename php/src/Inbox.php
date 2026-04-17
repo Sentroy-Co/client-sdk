@@ -1,119 +1,141 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Sentroy\ClientSdk;
 
 class Inbox
 {
-  private HttpClient $http;
+    /** @var HttpClient */
+    private $http;
 
-  public function __construct(HttpClient $http)
-  {
-    $this->http = $http;
-  }
+    public function __construct(HttpClient $http)
+    {
+        $this->http = $http;
+    }
 
-  /**
-   * List messages in a mailbox folder.
-   *
-   * @param array{mailbox?: string, folder?: string, page?: int, limit?: int, unreadOnly?: bool} $params
-   */
-  public function list(array $params = []): array
-  {
-    $query = [];
-    if (isset($params["mailbox"])) $query["mailbox"] = $params["mailbox"];
-    if (isset($params["folder"])) $query["folder"] = $params["folder"];
-    if (isset($params["page"])) $query["page"] = $params["page"];
-    if (isset($params["limit"])) $query["limit"] = $params["limit"];
-    if (!empty($params["unreadOnly"])) $query["unreadOnly"] = "true";
+    /**
+     * List messages in a mailbox folder.
+     *
+     * @param array $params {mailbox, folder, page, limit, unreadOnly}
+     * @return array
+     */
+    public function getAll(array $params = array())
+    {
+        $query = array();
+        if (isset($params['mailbox'])) $query['mailbox'] = $params['mailbox'];
+        if (isset($params['folder'])) $query['folder'] = $params['folder'];
+        if (isset($params['page'])) $query['page'] = $params['page'];
+        if (isset($params['limit'])) $query['limit'] = $params['limit'];
+        if (!empty($params['unreadOnly'])) $query['unreadOnly'] = 'true';
 
-    return $this->http->get("/inbox", $query);
-  }
+        return $this->http->get('/inbox', $query);
+    }
 
-  /**
-   * Get a single message detail.
-   *
-   * @param array{mailbox?: string, folder?: string} $options
-   */
-  public function get(int $uid, array $options = []): array
-  {
-    $query = [];
-    if (isset($options["mailbox"])) $query["mailbox"] = $options["mailbox"];
-    if (isset($options["folder"])) $query["folder"] = $options["folder"];
+    /**
+     * Get a single message detail.
+     *
+     * @param int   $uid
+     * @param array $options {mailbox, folder}
+     * @return array
+     */
+    public function get($uid, array $options = array())
+    {
+        $query = array();
+        if (isset($options['mailbox'])) $query['mailbox'] = $options['mailbox'];
+        if (isset($options['folder'])) $query['folder'] = $options['folder'];
 
-    return $this->http->get("/inbox/{$uid}", $query);
-  }
+        return $this->http->get('/inbox/' . $uid, $query);
+    }
 
-  /** List IMAP folders (mailboxes) for a given email account */
-  public function listFolders(?string $mailbox = null): array
-  {
-    $query = [];
-    if ($mailbox !== null) $query["mailbox"] = $mailbox;
+    /**
+     * List IMAP folders for a given email account.
+     *
+     * @param string|null $mailbox
+     * @return array
+     */
+    public function listFolders($mailbox = null)
+    {
+        $query = array();
+        if ($mailbox !== null) $query['mailbox'] = $mailbox;
 
-    return $this->http->get("/inbox/mailboxes", $query);
-  }
+        return $this->http->get('/inbox/mailboxes', $query);
+    }
 
-  /** Get thread messages by subject */
-  public function getThread(string $subject, ?string $mailbox = null): array
-  {
-    $query = ["subject" => $subject];
-    if ($mailbox !== null) $query["mailbox"] = $mailbox;
+    /**
+     * Get thread messages by subject.
+     *
+     * @param string      $subject
+     * @param string|null $mailbox
+     * @return array
+     */
+    public function getThread($subject, $mailbox = null)
+    {
+        $query = array('subject' => $subject);
+        if ($mailbox !== null) $query['mailbox'] = $mailbox;
 
-    return $this->http->get("/inbox/thread", $query);
-  }
+        return $this->http->get('/inbox/thread', $query);
+    }
 
-  /**
-   * Mark a message as read.
-   *
-   * @param array{mailbox?: string, folder?: string} $options
-   */
-  public function markAsRead(int $uid, array $options = []): void
-  {
-    $this->http->post("/inbox/{$uid}/read", [
-      "mailbox" => $options["mailbox"] ?? null,
-      "folder" => $options["folder"] ?? null,
-    ]);
-  }
+    /**
+     * Mark a message as read.
+     *
+     * @param int   $uid
+     * @param array $options {mailbox, folder}
+     * @return void
+     */
+    public function markAsRead($uid, array $options = array())
+    {
+        $this->http->post('/inbox/' . $uid . '/read', array(
+            'mailbox' => isset($options['mailbox']) ? $options['mailbox'] : null,
+            'folder' => isset($options['folder']) ? $options['folder'] : null,
+        ));
+    }
 
-  /**
-   * Mark a message as unread.
-   *
-   * @param array{mailbox?: string, folder?: string} $options
-   */
-  public function markAsUnread(int $uid, array $options = []): void
-  {
-    $query = [];
-    if (isset($options["mailbox"])) $query["mailbox"] = $options["mailbox"];
-    if (isset($options["folder"])) $query["folder"] = $options["folder"];
+    /**
+     * Mark a message as unread.
+     *
+     * @param int   $uid
+     * @param array $options {mailbox, folder}
+     * @return void
+     */
+    public function markAsUnread($uid, array $options = array())
+    {
+        $query = array();
+        if (isset($options['mailbox'])) $query['mailbox'] = $options['mailbox'];
+        if (isset($options['folder'])) $query['folder'] = $options['folder'];
 
-    $this->http->delete("/inbox/{$uid}/read", $query);
-  }
+        $this->http->delete('/inbox/' . $uid . '/read', $query);
+    }
 
-  /**
-   * Move a message to another folder.
-   *
-   * @param array{from?: string, mailbox?: string} $options
-   */
-  public function move(int $uid, string $to, array $options = []): void
-  {
-    $this->http->post("/inbox/{$uid}/move", [
-      "to" => $to,
-      "from" => $options["from"] ?? null,
-      "mailbox" => $options["mailbox"] ?? null,
-    ]);
-  }
+    /**
+     * Move a message to another folder.
+     *
+     * @param int    $uid
+     * @param string $to
+     * @param array  $options {from, mailbox}
+     * @return void
+     */
+    public function move($uid, $to, array $options = array())
+    {
+        $this->http->post('/inbox/' . $uid . '/move', array(
+            'to' => $to,
+            'from' => isset($options['from']) ? $options['from'] : null,
+            'mailbox' => isset($options['mailbox']) ? $options['mailbox'] : null,
+        ));
+    }
 
-  /**
-   * Delete a message.
-   *
-   * @param array{mailbox?: string, folder?: string} $options
-   */
-  public function delete(int $uid, array $options = []): void
-  {
-    $query = [];
-    if (isset($options["mailbox"])) $query["mailbox"] = $options["mailbox"];
-    if (isset($options["folder"])) $query["folder"] = $options["folder"];
+    /**
+     * Delete a message.
+     *
+     * @param int   $uid
+     * @param array $options {mailbox, folder}
+     * @return void
+     */
+    public function delete($uid, array $options = array())
+    {
+        $query = array();
+        if (isset($options['mailbox'])) $query['mailbox'] = $options['mailbox'];
+        if (isset($options['folder'])) $query['folder'] = $options['folder'];
 
-    $this->http->delete("/inbox/{$uid}", $query);
-  }
+        $this->http->delete('/inbox/' . $uid, $query);
+    }
 }

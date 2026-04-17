@@ -1,41 +1,42 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Sentroy\ClientSdk;
 
 class Send
 {
-  private HttpClient $http;
+    /** @var HttpClient */
+    private $http;
 
-  public function __construct(HttpClient $http)
-  {
-    $this->http = $http;
-  }
+    public function __construct(HttpClient $http)
+    {
+        $this->http = $http;
+    }
 
-  /**
-   * Send an email.
-   *
-   * @param array{
-   *   to: string|string[],
-   *   from: string,
-   *   subject: string,
-   *   domainId: string,
-   *   cc?: string|string[],
-   *   templateId?: string,
-   *   html?: string,
-   *   text?: string,
-   *   variables?: array<string, string>,
-   *   replyTo?: string,
-   *   attachments?: array<array{filename: string, content: string, contentType?: string}>,
-   *   scheduledAt?: string,
-   *   headers?: array<string, string>,
-   *   inReplyTo?: string,
-   *   references?: string[],
-   * } $params
-   */
-  public function email(array $params): array
-  {
-    return $this->http->post("/send", $params);
-  }
+    /**
+     * Send an email.
+     *
+     * @param array $params {
+     *     @type string|string[] $to
+     *     @type string          $from
+     *     @type string          $subject
+     *     @type string          $domainId
+     *     @type string|string[] $cc
+     *     @type string          $templateId
+     *     @type string          $html
+     *     @type string          $text
+     *     @type array           $variables
+     *     @type string          $lang
+     *     @type string          $replyTo
+     *     @type array           $attachments  [{filename, content, contentType}]
+     *     @type string          $scheduledAt
+     *     @type array           $headers
+     *     @type string          $inReplyTo
+     *     @type string[]        $references
+     * }
+     * @return array
+     */
+    public function email(array $params)
+    {
+        return $this->http->post('/send', $params);
+    }
 }
