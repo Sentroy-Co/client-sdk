@@ -73,8 +73,10 @@
       margin-bottom: 16px;
     }
     .sidebar-logo img { height: 26px; }
+    .sidebar-logo .logo-dark { display: none; }
     @media (prefers-color-scheme: dark) {
-      .sidebar-logo img { filter: brightness(0) invert(1); }
+      .sidebar-logo .logo-light { display: none; }
+      .sidebar-logo .logo-dark { display: block; }
     }
 
     .sidebar-section { padding: 0 16px; margin-bottom: 16px; }
@@ -275,10 +277,52 @@
     .json-key { color: #2563eb; }
     .json-str { color: #16a34a; }
     .json-bool { color: #ea580c; }
+    .ts-kw { color: #8b5cf6; }
+    .ts-str { color: #16a34a; }
+    .ts-fn { color: #2563eb; }
+    .ts-cm { color: #9ca3af; font-style: italic; }
     @media (prefers-color-scheme: dark) {
       .json-key { color: #93c5fd; }
       .json-str { color: #86efac; }
       .json-bool { color: #fdba74; }
+      .ts-kw { color: #c4b5fd; }
+      .ts-str { color: #86efac; }
+      .ts-fn { color: #93c5fd; }
+      .ts-cm { color: #6b7280; }
+    }
+
+    /* ── Code tabs ─────────────────────────────────── */
+    .code-tabs { margin-bottom: 20px; }
+    .code-tabs .tab-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0;
+    }
+    .code-tabs .tab-btn {
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--fg-muted);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .code-tabs .tab-btn:hover { color: var(--fg); }
+    .code-tabs .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .code-tabs .tab-panel { display: none; }
+    .code-tabs .tab-panel.active { display: block; }
+    .code-tabs .tab-panel pre {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+      margin-bottom: 0;
+      border-top: none;
     }
   </style>
 </head>
@@ -289,8 +333,9 @@
 <div class="wrapper">
   <!-- ── Sidebar ──────────────────────────────────── -->
   <nav class="sidebar">
-    <a href="#" class="sidebar-logo">
-      <img src="https://sentroy.com/business/sentroy-logo-light.png" alt="Sentroy" />
+    <a href="https://sentroy.com" class="sidebar-logo">
+      <img class="logo-light" src="https://sentroy.com/business/sentroy-logo-light.png" alt="Sentroy" />
+      <img class="logo-dark" src="https://sentroy.com/business/sentroy-logo-dark.png" alt="Sentroy" />
     </a>
 
     <div class="sidebar-section">
@@ -385,8 +430,19 @@
 
     <h3 id="domains-list">List domains</h3>
     <div class="endpoint"><span class="method method-get">GET</span> /domains</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s https://sentroy.com/api/companies/{company-slug}/domains \
   -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> domains = <span class="ts-kw">await</span> sentroy.domains.<span class="ts-fn">list</span>()</code></pre>
+      </div>
+    </div>
     <p><strong>Response</strong></p>
 <pre><code>{
   <span class="json-key">"data"</span>: [
@@ -405,16 +461,38 @@
 
     <h3 id="domains-get">Get domain</h3>
     <div class="endpoint"><span class="method method-get">GET</span> /domains/{id}</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s https://sentroy.com/api/companies/{company-slug}/domains/{domain-id} \
   -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> domain = <span class="ts-kw">await</span> sentroy.domains.<span class="ts-fn">get</span>(<span class="ts-str">"domain-id"</span>)</code></pre>
+      </div>
+    </div>
 
     <!-- ── Mailboxes ───────────────────────────────── -->
     <h2 id="mailboxes">Mailboxes</h2>
 
     <h3 id="mailboxes-list">List mailbox accounts</h3>
     <div class="endpoint"><span class="method method-get">GET</span> /mailboxes</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s https://sentroy.com/api/companies/{company-slug}/mailboxes \
   -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> mailboxes = <span class="ts-kw">await</span> sentroy.mailboxes.<span class="ts-fn">list</span>()</code></pre>
+      </div>
+    </div>
     <p><strong>Response</strong></p>
 <pre><code>{
   <span class="json-key">"data"</span>: [
@@ -431,13 +509,35 @@
 
     <h3 id="templates-list">List templates</h3>
     <div class="endpoint"><span class="method method-get">GET</span> /templates</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s https://sentroy.com/api/companies/{company-slug}/templates \
   -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> templates = <span class="ts-kw">await</span> sentroy.templates.<span class="ts-fn">list</span>()</code></pre>
+      </div>
+    </div>
 
     <h3 id="templates-get">Get template</h3>
     <div class="endpoint"><span class="method method-get">GET</span> /templates/{id}</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s https://sentroy.com/api/companies/{company-slug}/templates/{template-id} \
   -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> template = <span class="ts-kw">await</span> sentroy.templates.<span class="ts-fn">get</span>(<span class="ts-str">"template-id"</span>)</code></pre>
+      </div>
+    </div>
     <p><strong>Response</strong></p>
 <pre><code>{
   <span class="json-key">"data"</span>: {
@@ -461,6 +561,12 @@
     <div class="endpoint"><span class="method method-post">POST</span> /send</div>
 
     <h3 id="send-template">Send with a template</h3>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
@@ -470,14 +576,29 @@
     "subject": "Welcome!",
     "domainId": "a1b2c3d4-...",
     "templateId": "b3f1a2c4-...",
-    "variables": {
-      "name": "John",
-      "company": "Acme"
-    }
+    "variables": { "name": "John", "company": "Acme" }
   }'</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> result = <span class="ts-kw">await</span> sentroy.send.<span class="ts-fn">email</span>({
+  to: <span class="ts-str">"user@example.com"</span>,
+  from: <span class="ts-str">"info@example.com"</span>,
+  subject: <span class="ts-str">"Welcome!"</span>,
+  domainId: <span class="ts-str">"a1b2c3d4-..."</span>,
+  templateId: <span class="ts-str">"b3f1a2c4-..."</span>,
+  variables: { name: <span class="ts-str">"John"</span>, company: <span class="ts-str">"Acme"</span> },
+})</code></pre>
+      </div>
+    </div>
 
     <h3 id="send-lang">Send with a specific language</h3>
     <p>Use the <code>lang</code> parameter to select which language version of the template to render.</p>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
@@ -488,12 +609,29 @@
     "domainId": "a1b2c3d4-...",
     "templateId": "b3f1a2c4-...",
     "lang": "tr",
-    "variables": {
-      "name": "Ahmet"
-    }
+    "variables": { "name": "Ahmet" }
   }'</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> result = <span class="ts-kw">await</span> sentroy.send.<span class="ts-fn">email</span>({
+  to: <span class="ts-str">"user@example.com"</span>,
+  from: <span class="ts-str">"info@example.com"</span>,
+  subject: <span class="ts-str">"Hosgeldin!"</span>,
+  domainId: <span class="ts-str">"a1b2c3d4-..."</span>,
+  templateId: <span class="ts-str">"b3f1a2c4-..."</span>,
+  lang: <span class="ts-str">"tr"</span>,
+  variables: { name: <span class="ts-str">"Ahmet"</span> },
+})</code></pre>
+      </div>
+    </div>
 
     <h3 id="send-html">Send with raw HTML</h3>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
@@ -504,8 +642,25 @@
     "domainId": "a1b2c3d4-...",
     "html": "&lt;h1&gt;Hello World&lt;/h1&gt;"
   }'</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> result = <span class="ts-kw">await</span> sentroy.send.<span class="ts-fn">email</span>({
+  to: [<span class="ts-str">"user1@example.com"</span>, <span class="ts-str">"user2@example.com"</span>],
+  from: <span class="ts-str">"info@example.com"</span>,
+  subject: <span class="ts-str">"Hello"</span>,
+  domainId: <span class="ts-str">"a1b2c3d4-..."</span>,
+  html: <span class="ts-str">"&lt;h1&gt;Hello World&lt;/h1&gt;"</span>,
+})</code></pre>
+      </div>
+    </div>
 
     <h3 id="send-attachments">Send with attachments</h3>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
@@ -515,14 +670,28 @@
     "subject": "Invoice",
     "domainId": "a1b2c3d4-...",
     "html": "&lt;p&gt;Please find your invoice attached.&lt;/p&gt;",
-    "attachments": [
-      {
-        "filename": "invoice.pdf",
-        "content": "&lt;base64-encoded-content&gt;",
-        "contentType": "application/pdf"
-      }
-    ]
+    "attachments": [{
+      "filename": "invoice.pdf",
+      "content": "&lt;base64&gt;",
+      "contentType": "application/pdf"
+    }]
   }'</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> result = <span class="ts-kw">await</span> sentroy.send.<span class="ts-fn">email</span>({
+  to: <span class="ts-str">"user@example.com"</span>,
+  from: <span class="ts-str">"info@example.com"</span>,
+  subject: <span class="ts-str">"Invoice"</span>,
+  domainId: <span class="ts-str">"a1b2c3d4-..."</span>,
+  html: <span class="ts-str">"&lt;p&gt;Please find your invoice attached.&lt;/p&gt;"</span>,
+  attachments: [{
+    filename: <span class="ts-str">"invoice.pdf"</span>,
+    content: base64String,
+    contentType: <span class="ts-str">"application/pdf"</span>,
+  }],
+})</code></pre>
+      </div>
+    </div>
 
     <p><strong>Response</strong></p>
 <pre><code>{
@@ -571,47 +740,145 @@
         <tr><td><code>unreadOnly</code></td><td><code>bool</code></td><td>Only return unread messages</td></tr>
       </tbody>
     </table>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s "https://sentroy.com/api/companies/{company-slug}/inbox?mailbox=info@example.com&folder=INBOX&page=1&limit=20" \
   -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> messages = <span class="ts-kw">await</span> sentroy.inbox.<span class="ts-fn">list</span>({
+  mailbox: <span class="ts-str">"info@example.com"</span>,
+  folder: <span class="ts-str">"INBOX"</span>,
+  page: 1,
+  limit: 20,
+})</code></pre>
+      </div>
+    </div>
 
     <h3 id="inbox-get">Get message</h3>
     <div class="endpoint"><span class="method method-get">GET</span> /inbox/{uid}</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s "https://sentroy.com/api/companies/{company-slug}/inbox/1234?mailbox=info@example.com" \
   -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> message = <span class="ts-kw">await</span> sentroy.inbox.<span class="ts-fn">get</span>(1234, {
+  mailbox: <span class="ts-str">"info@example.com"</span>,
+})</code></pre>
+      </div>
+    </div>
 
     <h3 id="inbox-folders">List IMAP folders</h3>
     <div class="endpoint"><span class="method method-get">GET</span> /inbox/mailboxes</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s "https://sentroy.com/api/companies/{company-slug}/inbox/mailboxes?mailbox=info@example.com" \
   -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> folders = <span class="ts-kw">await</span> sentroy.inbox.<span class="ts-fn">listFolders</span>(<span class="ts-str">"info@example.com"</span>)</code></pre>
+      </div>
+    </div>
 
     <h3 id="inbox-thread">Get thread by subject</h3>
     <div class="endpoint"><span class="method method-get">GET</span> /inbox/thread</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s "https://sentroy.com/api/companies/{company-slug}/inbox/thread?subject=Re%3A+Project+update&mailbox=info@example.com" \
   -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> thread = <span class="ts-kw">await</span> sentroy.inbox.<span class="ts-fn">getThread</span>(<span class="ts-str">"Re: Project update"</span>, <span class="ts-str">"info@example.com"</span>)</code></pre>
+      </div>
+    </div>
 
     <h3 id="inbox-read">Mark as read</h3>
     <div class="endpoint"><span class="method method-post">POST</span> /inbox/{uid}/read</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/inbox/1234/read \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
   -d '{"mailbox": "info@example.com", "folder": "INBOX"}'</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">await</span> sentroy.inbox.<span class="ts-fn">markAsRead</span>(1234, { mailbox: <span class="ts-str">"info@example.com"</span> })</code></pre>
+      </div>
+    </div>
 
     <h3>Mark as unread</h3>
     <div class="endpoint"><span class="method method-delete">DELETE</span> /inbox/{uid}/read</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s -X DELETE "https://sentroy.com/api/companies/{company-slug}/inbox/1234/read?mailbox=info@example.com&folder=INBOX" \
   -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">await</span> sentroy.inbox.<span class="ts-fn">markAsUnread</span>(1234, { mailbox: <span class="ts-str">"info@example.com"</span> })</code></pre>
+      </div>
+    </div>
 
     <h3 id="inbox-move">Move message</h3>
     <div class="endpoint"><span class="method method-post">POST</span> /inbox/{uid}/move</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/inbox/1234/move \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
   -d '{"to": "Trash", "from": "INBOX", "mailbox": "info@example.com"}'</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">await</span> sentroy.inbox.<span class="ts-fn">move</span>(1234, <span class="ts-str">"Trash"</span>, {
+  from: <span class="ts-str">"INBOX"</span>,
+  mailbox: <span class="ts-str">"info@example.com"</span>,
+})</code></pre>
+      </div>
+    </div>
 
     <h3 id="inbox-delete">Delete message</h3>
     <div class="endpoint"><span class="method method-delete">DELETE</span> /inbox/{uid}</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
 <pre><code>curl -s -X DELETE "https://sentroy.com/api/companies/{company-slug}/inbox/1234?mailbox=info@example.com" \
   -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">await</span> sentroy.inbox.<span class="ts-fn">delete</span>(1234, { mailbox: <span class="ts-str">"info@example.com"</span> })</code></pre>
+      </div>
+    </div>
 
   </main>
 </div>
@@ -631,6 +898,19 @@ document.querySelectorAll('pre').forEach(pre => {
     })
   })
   pre.appendChild(btn)
+})
+
+// Code tabs
+document.querySelectorAll('.code-tabs').forEach(tabs => {
+  const btns = tabs.querySelectorAll('.tab-btn')
+  const panels = tabs.querySelectorAll('.tab-panel')
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.tab
+      btns.forEach(b => b.classList.toggle('active', b.dataset.tab === target))
+      panels.forEach(p => p.classList.toggle('active', p.dataset.panel === target))
+    })
+  })
 })
 
 // Close mobile sidebar on link click

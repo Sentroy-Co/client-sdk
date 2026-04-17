@@ -5,7 +5,8 @@
 <h3 align="center">Sentroy Client SDKs</h3>
 
 <p align="center">
-  Official client SDKs for the Sentroy platform API.
+  Official client SDKs for the <a href="https://sentroy.com">Sentroy</a> platform API.<br />
+  <a href="https://sentroy-co.github.io/client-sdk/">API Documentation</a> &middot; <a href="https://sentroy.com">sentroy.com</a>
 </p>
 
 ---
@@ -42,11 +43,23 @@ Authorization: Bearer stk_...
 
 Each SDK has its own README with detailed installation and usage instructions:
 
-- [TypeScript](typescript/)
-- [Go](go/)
-- [Python](python/)
-- [PHP](php/)
-- [cURL](curl/)
+- [TypeScript](typescript/) · [raw](https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/typescript/README.md)
+- [Go](go/) · [raw](https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/go/README.md)
+- [Python](python/) · [raw](https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/python/README.md)
+- [PHP](php/) · [raw](https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/php/README.md)
+- [cURL](curl/) · [raw](https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/curl/README.md)
+
+### For AI Agents
+
+Plain-text documentation links for LLM/agent consumption:
+
+```
+https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/typescript/README.md
+https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/go/README.md
+https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/python/README.md
+https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/php/README.md
+https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/curl/README.md
+```
 
 ## License
 

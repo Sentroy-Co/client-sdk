@@ -218,6 +218,14 @@ if err != nil {
 - Go 1.21+
 - Zero external dependencies (stdlib only)
 
+## Raw Documentation
+
+For AI agents and LLMs — plain-text version of this document:
+
+```
+https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/go/README.md
+```
+
 ## License
 
 [MIT](LICENSE)

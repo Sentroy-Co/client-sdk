@@ -201,6 +201,14 @@ try {
 - `ext-curl`
 - `ext-json`
 
+## Raw Documentation
+
+For AI agents and LLMs — plain-text version of this document:
+
+```
+https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/php/README.md
+```
+
 ## License
 
 [MIT](../LICENSE)

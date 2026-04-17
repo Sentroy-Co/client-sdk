@@ -203,6 +203,14 @@ try {
 - Node.js 18+ (uses native `fetch`)
 - Server-side only
 
+## Raw Documentation
+
+For AI agents and LLMs — plain-text version of this document:
+
+```
+https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/typescript/README.md
+```
+
 ## License
 
 [MIT](LICENSE)

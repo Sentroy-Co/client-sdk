@@ -318,6 +318,14 @@ All error responses follow the same format:
 
 ---
 
+## Raw Documentation
+
+For AI agents and LLMs — plain-text version of this document:
+
+```
+https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/curl/README.md
+```
+
 ## License
 
 [MIT](../LICENSE)
