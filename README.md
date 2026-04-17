@@ -18,6 +18,7 @@
 | Go | [`github.com/Sentroy-Co/client-sdk/go`](https://pkg.go.dev/github.com/Sentroy-Co/client-sdk/go) | `go get github.com/Sentroy-Co/client-sdk/go` |
 | Python | [`sentroy-client-sdk`](https://pypi.org/project/sentroy-client-sdk/) | `pip install sentroy-client-sdk` |
 | PHP | [`sentroy-co/client-sdk`](https://packagist.org/packages/sentroy-co/client-sdk) | `composer require sentroy-co/client-sdk` |
+| cURL | — | [Examples](curl/) |
 
 ## Features
 
@@ -45,6 +46,7 @@ Each SDK has its own README with detailed installation and usage instructions:
 - [Go](go/)
 - [Python](python/)
 - [PHP](php/)
+- [cURL](curl/)
 
 ## License
 
