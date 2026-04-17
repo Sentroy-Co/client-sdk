@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentroy API Documentation</title>
+  <meta name="description" content="Official API documentation for the Sentroy platform. SDKs for TypeScript, Go, Python, PHP and cURL examples." />
+  <link rel="icon" href="https://sentroy.com/favicon.ico" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-alt: #f8f9fb;
+      --bg-code: #f1f3f5;
+      --fg: #1a1a2e;
+      --fg-muted: #6b7280;
+      --border: #e5e7eb;
+      --accent: #2563eb;
+      --accent-light: #dbeafe;
+      --green: #16a34a;
+      --orange: #ea580c;
+      --red: #dc2626;
+      --radius: 10px;
+      --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1117;
+        --bg-alt: #181a24;
+        --bg-code: #1e2030;
+        --fg: #e4e5e9;
+        --fg-muted: #8b8fa3;
+        --border: #2a2d3a;
+        --accent: #60a5fa;
+        --accent-light: #1e3a5f;
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Layout ────────────────────────────────────── */
+    .wrapper {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ───────────────────────────────────── */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 260px;
+      height: 100vh;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      background: var(--bg-alt);
+      padding: 24px 0;
+      z-index: 10;
+    }
+    .sidebar-logo {
+      display: block;
+      padding: 0 24px 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .sidebar-logo img { height: 26px; }
+    @media (prefers-color-scheme: dark) {
+      .sidebar-logo img { filter: brightness(0) invert(1); }
+    }
+
+    .sidebar-section { padding: 0 16px; margin-bottom: 16px; }
+    .sidebar-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--fg-muted);
+      padding: 0 8px;
+      margin-bottom: 4px;
+    }
+    .sidebar a {
+      display: block;
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--fg);
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .sidebar a:hover { background: var(--border); }
+    .sidebar a.sub { padding-left: 20px; color: var(--fg-muted); font-size: 12.5px; }
+
+    /* ── Main content ──────────────────────────────── */
+    .main {
+      margin-left: 260px;
+      flex: 1;
+      max-width: 860px;
+      padding: 48px 48px 120px;
+    }
+
+    h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-top: 56px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 { font-size: 16px; font-weight: 600; margin-top: 32px; margin-bottom: 10px; }
+    p { margin-bottom: 14px; }
+    .subtitle { color: var(--fg-muted); font-size: 15px; margin-bottom: 32px; }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Code blocks ───────────────────────────────── */
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.55;
+      font-family: var(--font-mono);
+      margin-bottom: 20px;
+      position: relative;
+    }
+    pre .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      color: var(--fg-muted);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    pre:hover .copy-btn { opacity: 1; }
+    pre .copy-btn:hover { color: var(--fg); }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+    p code, li code, td code {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 12.5px;
+    }
+
+    /* ── Tables ─────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+    }
+    th { background: var(--bg-alt); font-weight: 600; font-size: 13px; }
+
+    /* ── Method badge ──────────────────────────────── */
+    .method {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      padding: 2px 7px;
+      border-radius: 4px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .method-get { background: #dcfce7; color: #166534; }
+    .method-post { background: #dbeafe; color: #1e40af; }
+    .method-put { background: #fef3c7; color: #92400e; }
+    .method-delete { background: #fee2e2; color: #991b1b; }
+    @media (prefers-color-scheme: dark) {
+      .method-get { background: #14532d; color: #86efac; }
+      .method-post { background: #1e3a5f; color: #93c5fd; }
+      .method-put { background: #451a03; color: #fcd34d; }
+      .method-delete { background: #450a0a; color: #fca5a5; }
+    }
+
+    /* ── Endpoint block ────────────────────────────── */
+    .endpoint {
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Callout ────────────────────────────────────── */
+    .callout {
+      background: var(--accent-light);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    /* ── SDK pills ─────────────────────────────────── */
+    .sdk-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .sdk-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-decoration: none;
+      color: var(--fg);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .sdk-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+      text-decoration: none;
+    }
+    .sdk-card strong { display: block; margin-bottom: 4px; }
+    .sdk-card span { font-size: 12px; color: var(--fg-muted); font-family: var(--font-mono); }
+
+    /* ── Responsive ────────────────────────────────── */
+    .menu-toggle { display: none; }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; padding: 24px 20px 100px; }
+      .menu-toggle {
+        display: flex;
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 20;
+        width: 36px;
+        height: 36px;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-alt);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 18px;
+      }
+    }
+
+    .json-key { color: #2563eb; }
+    .json-str { color: #16a34a; }
+    .json-bool { color: #ea580c; }
+    @media (prefers-color-scheme: dark) {
+      .json-key { color: #93c5fd; }
+      .json-str { color: #86efac; }
+      .json-bool { color: #fdba74; }
+    }
+  </style>
+</head>
+<body>
+
+<button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+
+<div class="wrapper">
+  <!-- ── Sidebar ──────────────────────────────────── -->
+  <nav class="sidebar">
+    <a href="#" class="sidebar-logo">
+      <img src="https://sentroy.com/business/sentroy-logo-light.png" alt="Sentroy" />
+    </a>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Getting Started</div>
+      <a href="#authentication">Authentication</a>
+      <a href="#sdks">SDKs</a>
+      <a href="#errors">Error Handling</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Resources</div>
+      <a href="#domains">Domains</a>
+      <a href="#domains-list" class="sub">List domains</a>
+      <a href="#domains-get" class="sub">Get domain</a>
+      <a href="#mailboxes">Mailboxes</a>
+      <a href="#mailboxes-list" class="sub">List mailboxes</a>
+      <a href="#templates">Templates</a>
+      <a href="#templates-list" class="sub">List templates</a>
+      <a href="#templates-get" class="sub">Get template</a>
+      <a href="#send">Send Email</a>
+      <a href="#send-template" class="sub">With template</a>
+      <a href="#send-lang" class="sub">With language</a>
+      <a href="#send-html" class="sub">With raw HTML</a>
+      <a href="#send-attachments" class="sub">With attachments</a>
+      <a href="#inbox">Inbox</a>
+      <a href="#inbox-list" class="sub">List messages</a>
+      <a href="#inbox-get" class="sub">Get message</a>
+      <a href="#inbox-folders" class="sub">List folders</a>
+      <a href="#inbox-thread" class="sub">Get thread</a>
+      <a href="#inbox-read" class="sub">Mark read / unread</a>
+      <a href="#inbox-move" class="sub">Move message</a>
+      <a href="#inbox-delete" class="sub">Delete message</a>
+    </div>
+  </nav>
+
+  <!-- ── Main ─────────────────────────────────────── -->
+  <main class="main">
+
+    <h1>Sentroy API</h1>
+    <p class="subtitle">Complete reference for the Sentroy platform REST API.</p>
+
+    <!-- Auth -->
+    <h2 id="authentication">Authentication</h2>
+    <p>All API requests require a Bearer access token in the <code>Authorization</code> header.</p>
+    <div class="endpoint">Authorization: Bearer stk_...</div>
+    <p>Create tokens from <strong>Admin &rarr; Access Tokens</strong> in your Sentroy dashboard.</p>
+    <p><strong>Base URL</strong></p>
+    <div class="endpoint">https://sentroy.com/api/companies/{company-slug}</div>
+    <p>Replace <code>{company-slug}</code> with your company slug in all endpoints below.</p>
+
+    <!-- SDKs -->
+    <h2 id="sdks">SDKs</h2>
+    <div class="sdk-grid">
+      <a class="sdk-card" href="https://www.npmjs.com/package/@sentroy-co/client-sdk">
+        <strong>TypeScript / Node.js</strong>
+        <span>npm i @sentroy-co/client-sdk</span>
+      </a>
+      <a class="sdk-card" href="https://pkg.go.dev/github.com/Sentroy-Co/client-sdk/go">
+        <strong>Go</strong>
+        <span>go get ...client-sdk/go</span>
+      </a>
+      <a class="sdk-card" href="https://pypi.org/project/sentroy-client-sdk/">
+        <strong>Python</strong>
+        <span>pip install sentroy-client-sdk</span>
+      </a>
+      <a class="sdk-card" href="https://packagist.org/packages/sentroy-co/client-sdk">
+        <strong>PHP</strong>
+        <span>composer require sentroy-co/client-sdk</span>
+      </a>
+    </div>
+
+    <!-- Errors -->
+    <h2 id="errors">Error Handling</h2>
+    <p>Error responses use a consistent envelope:</p>
+<pre><code>{
+  <span class="json-key">"data"</span>: <span class="json-bool">null</span>,
+  <span class="json-key">"error"</span>: <span class="json-str">"Human-readable error message"</span>
+}</code></pre>
+    <table>
+      <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>400</code></td><td>Bad request &mdash; missing or invalid parameters</td></tr>
+        <tr><td><code>401</code></td><td>Invalid or expired access token</td></tr>
+        <tr><td><code>403</code></td><td>Insufficient permissions or token/company mismatch</td></tr>
+        <tr><td><code>404</code></td><td>Resource not found</td></tr>
+        <tr><td><code>500</code></td><td>Internal server error</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ── Domains ─────────────────────────────────── -->
+    <h2 id="domains">Domains</h2>
+
+    <h3 id="domains-list">List domains</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /domains</div>
+<pre><code>curl -s https://sentroy.com/api/companies/{company-slug}/domains \
+  -H "Authorization: Bearer stk_..."</code></pre>
+    <p><strong>Response</strong></p>
+<pre><code>{
+  <span class="json-key">"data"</span>: [
+    {
+      <span class="json-key">"id"</span>: <span class="json-str">"a1b2c3d4-..."</span>,
+      <span class="json-key">"domain"</span>: <span class="json-str">"example.com"</span>,
+      <span class="json-key">"status"</span>: <span class="json-str">"active"</span>,
+      <span class="json-key">"spfVerified"</span>: <span class="json-bool">true</span>,
+      <span class="json-key">"dkimVerified"</span>: <span class="json-bool">true</span>,
+      <span class="json-key">"dmarcVerified"</span>: <span class="json-bool">true</span>,
+      <span class="json-key">"createdAt"</span>: <span class="json-str">"2026-01-10T08:00:00.000Z"</span>,
+      <span class="json-key">"updatedAt"</span>: <span class="json-str">"2026-01-10T09:15:00.000Z"</span>
+    }
+  ]
+}</code></pre>
+
+    <h3 id="domains-get">Get domain</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /domains/{id}</div>
+<pre><code>curl -s https://sentroy.com/api/companies/{company-slug}/domains/{domain-id} \
+  -H "Authorization: Bearer stk_..."</code></pre>
+
+    <!-- ── Mailboxes ───────────────────────────────── -->
+    <h2 id="mailboxes">Mailboxes</h2>
+
+    <h3 id="mailboxes-list">List mailbox accounts</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /mailboxes</div>
+<pre><code>curl -s https://sentroy.com/api/companies/{company-slug}/mailboxes \
+  -H "Authorization: Bearer stk_..."</code></pre>
+    <p><strong>Response</strong></p>
+<pre><code>{
+  <span class="json-key">"data"</span>: [
+    {
+      <span class="json-key">"email"</span>: <span class="json-str">"info@example.com"</span>,
+      <span class="json-key">"domain"</span>: <span class="json-str">"example.com"</span>,
+      <span class="json-key">"username"</span>: <span class="json-str">"info"</span>
+    }
+  ]
+}</code></pre>
+
+    <!-- ── Templates ───────────────────────────────── -->
+    <h2 id="templates">Templates</h2>
+
+    <h3 id="templates-list">List templates</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /templates</div>
+<pre><code>curl -s https://sentroy.com/api/companies/{company-slug}/templates \
+  -H "Authorization: Bearer stk_..."</code></pre>
+
+    <h3 id="templates-get">Get template</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /templates/{id}</div>
+<pre><code>curl -s https://sentroy.com/api/companies/{company-slug}/templates/{template-id} \
+  -H "Authorization: Bearer stk_..."</code></pre>
+    <p><strong>Response</strong></p>
+<pre><code>{
+  <span class="json-key">"data"</span>: {
+    <span class="json-key">"id"</span>: <span class="json-str">"b3f1a2c4-..."</span>,
+    <span class="json-key">"name"</span>: { <span class="json-key">"en"</span>: <span class="json-str">"Welcome Email"</span>, <span class="json-key">"tr"</span>: <span class="json-str">"Hosgeldin E-postasi"</span> },
+    <span class="json-key">"subject"</span>: { <span class="json-key">"en"</span>: <span class="json-str">"Welcome, {{name}}!"</span>, <span class="json-key">"tr"</span>: <span class="json-str">"Hosgeldin, {{name}}!"</span> },
+    <span class="json-key">"mjmlBody"</span>: { <span class="json-key">"en"</span>: <span class="json-str">"&lt;mjml&gt;...&lt;/mjml&gt;"</span>, <span class="json-key">"tr"</span>: <span class="json-str">"&lt;mjml&gt;...&lt;/mjml&gt;"</span> },
+    <span class="json-key">"variables"</span>: [<span class="json-str">"name"</span>, <span class="json-str">"company"</span>],
+    <span class="json-key">"domainId"</span>: <span class="json-str">"a1b2c3d4-..."</span>,
+    <span class="json-key">"domainName"</span>: <span class="json-str">"example.com"</span>,
+    <span class="json-key">"createdAt"</span>: <span class="json-str">"2026-01-15T10:30:00.000Z"</span>,
+    <span class="json-key">"updatedAt"</span>: <span class="json-str">"2026-04-10T14:22:00.000Z"</span>
+  }
+}</code></pre>
+    <div class="callout">
+      Fields like <code>name</code>, <code>subject</code>, and <code>mjmlBody</code> can be a plain string or an object keyed by language code. Use the <code>variables</code> array to know which <code>{{placeholders}}</code> the template expects.
+    </div>
+
+    <!-- ── Send ────────────────────────────────────── -->
+    <h2 id="send">Send Email</h2>
+    <div class="endpoint"><span class="method method-post">POST</span> /send</div>
+
+    <h3 id="send-template">Send with a template</h3>
+<pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "user@example.com",
+    "from": "info@example.com",
+    "subject": "Welcome!",
+    "domainId": "a1b2c3d4-...",
+    "templateId": "b3f1a2c4-...",
+    "variables": {
+      "name": "John",
+      "company": "Acme"
+    }
+  }'</code></pre>
+
+    <h3 id="send-lang">Send with a specific language</h3>
+    <p>Use the <code>lang</code> parameter to select which language version of the template to render.</p>
+<pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "user@example.com",
+    "from": "info@example.com",
+    "subject": "Hosgeldin!",
+    "domainId": "a1b2c3d4-...",
+    "templateId": "b3f1a2c4-...",
+    "lang": "tr",
+    "variables": {
+      "name": "Ahmet"
+    }
+  }'</code></pre>
+
+    <h3 id="send-html">Send with raw HTML</h3>
+<pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": ["user1@example.com", "user2@example.com"],
+    "from": "info@example.com",
+    "subject": "Hello",
+    "domainId": "a1b2c3d4-...",
+    "html": "&lt;h1&gt;Hello World&lt;/h1&gt;"
+  }'</code></pre>
+
+    <h3 id="send-attachments">Send with attachments</h3>
+<pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "user@example.com",
+    "from": "info@example.com",
+    "subject": "Invoice",
+    "domainId": "a1b2c3d4-...",
+    "html": "&lt;p&gt;Please find your invoice attached.&lt;/p&gt;",
+    "attachments": [
+      {
+        "filename": "invoice.pdf",
+        "content": "&lt;base64-encoded-content&gt;",
+        "contentType": "application/pdf"
+      }
+    ]
+  }'</code></pre>
+
+    <p><strong>Response</strong></p>
+<pre><code>{
+  <span class="json-key">"data"</span>: {
+    <span class="json-key">"jobId"</span>: <span class="json-str">"job_abc123"</span>,
+    <span class="json-key">"mailLogId"</span>: <span class="json-str">"log_xyz789"</span>,
+    <span class="json-key">"status"</span>: <span class="json-str">"queued"</span>
+  }
+}</code></pre>
+
+    <h3>Send parameters</h3>
+    <table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>to</code></td><td><code>string | string[]</code></td><td>Yes</td><td>Recipient address(es)</td></tr>
+        <tr><td><code>from</code></td><td><code>string</code></td><td>Yes</td><td>Sender address (must be a verified mailbox)</td></tr>
+        <tr><td><code>subject</code></td><td><code>string</code></td><td>Yes</td><td>Email subject line</td></tr>
+        <tr><td><code>domainId</code></td><td><code>string</code></td><td>Yes</td><td>Verified domain ID</td></tr>
+        <tr><td><code>templateId</code></td><td><code>string</code></td><td>No</td><td>Template ID to render</td></tr>
+        <tr><td><code>lang</code></td><td><code>string</code></td><td>No</td><td>Template language code (e.g. <code>"en"</code>, <code>"tr"</code>)</td></tr>
+        <tr><td><code>html</code></td><td><code>string</code></td><td>No</td><td>Raw HTML body (used if no template)</td></tr>
+        <tr><td><code>text</code></td><td><code>string</code></td><td>No</td><td>Plain text body</td></tr>
+        <tr><td><code>variables</code></td><td><code>object</code></td><td>No</td><td>Template variable values</td></tr>
+        <tr><td><code>cc</code></td><td><code>string | string[]</code></td><td>No</td><td>CC addresses</td></tr>
+        <tr><td><code>replyTo</code></td><td><code>string</code></td><td>No</td><td>Reply-To address</td></tr>
+        <tr><td><code>attachments</code></td><td><code>array</code></td><td>No</td><td>File attachments (base64)</td></tr>
+        <tr><td><code>scheduledAt</code></td><td><code>string</code></td><td>No</td><td>ISO 8601 datetime to schedule</td></tr>
+        <tr><td><code>headers</code></td><td><code>object</code></td><td>No</td><td>Custom email headers</td></tr>
+        <tr><td><code>inReplyTo</code></td><td><code>string</code></td><td>No</td><td>RFC 5322 Message-ID for threading</td></tr>
+        <tr><td><code>references</code></td><td><code>string[]</code></td><td>No</td><td>RFC 5322 References for threading</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ── Inbox ───────────────────────────────────── -->
+    <h2 id="inbox">Inbox</h2>
+
+    <h3 id="inbox-list">List messages</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /inbox</div>
+    <table>
+      <thead><tr><th>Query</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>mailbox</code></td><td><code>string</code></td><td>Email address of the mailbox</td></tr>
+        <tr><td><code>folder</code></td><td><code>string</code></td><td>IMAP folder (default: <code>INBOX</code>)</td></tr>
+        <tr><td><code>page</code></td><td><code>int</code></td><td>Page number</td></tr>
+        <tr><td><code>limit</code></td><td><code>int</code></td><td>Messages per page</td></tr>
+        <tr><td><code>unreadOnly</code></td><td><code>bool</code></td><td>Only return unread messages</td></tr>
+      </tbody>
+    </table>
+<pre><code>curl -s "https://sentroy.com/api/companies/{company-slug}/inbox?mailbox=info@example.com&folder=INBOX&page=1&limit=20" \
+  -H "Authorization: Bearer stk_..."</code></pre>
+
+    <h3 id="inbox-get">Get message</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /inbox/{uid}</div>
+<pre><code>curl -s "https://sentroy.com/api/companies/{company-slug}/inbox/1234?mailbox=info@example.com" \
+  -H "Authorization: Bearer stk_..."</code></pre>
+
+    <h3 id="inbox-folders">List IMAP folders</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /inbox/mailboxes</div>
+<pre><code>curl -s "https://sentroy.com/api/companies/{company-slug}/inbox/mailboxes?mailbox=info@example.com" \
+  -H "Authorization: Bearer stk_..."</code></pre>
+
+    <h3 id="inbox-thread">Get thread by subject</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /inbox/thread</div>
+<pre><code>curl -s "https://sentroy.com/api/companies/{company-slug}/inbox/thread?subject=Re%3A+Project+update&mailbox=info@example.com" \
+  -H "Authorization: Bearer stk_..."</code></pre>
+
+    <h3 id="inbox-read">Mark as read</h3>
+    <div class="endpoint"><span class="method method-post">POST</span> /inbox/{uid}/read</div>
+<pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/inbox/1234/read \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"mailbox": "info@example.com", "folder": "INBOX"}'</code></pre>
+
+    <h3>Mark as unread</h3>
+    <div class="endpoint"><span class="method method-delete">DELETE</span> /inbox/{uid}/read</div>
+<pre><code>curl -s -X DELETE "https://sentroy.com/api/companies/{company-slug}/inbox/1234/read?mailbox=info@example.com&folder=INBOX" \
+  -H "Authorization: Bearer stk_..."</code></pre>
+
+    <h3 id="inbox-move">Move message</h3>
+    <div class="endpoint"><span class="method method-post">POST</span> /inbox/{uid}/move</div>
+<pre><code>curl -s -X POST https://sentroy.com/api/companies/{company-slug}/inbox/1234/move \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"to": "Trash", "from": "INBOX", "mailbox": "info@example.com"}'</code></pre>
+
+    <h3 id="inbox-delete">Delete message</h3>
+    <div class="endpoint"><span class="method method-delete">DELETE</span> /inbox/{uid}</div>
+<pre><code>curl -s -X DELETE "https://sentroy.com/api/companies/{company-slug}/inbox/1234?mailbox=info@example.com" \
+  -H "Authorization: Bearer stk_..."</code></pre>
+
+  </main>
+</div>
+
+<script>
+// Copy button for code blocks
+document.querySelectorAll('pre').forEach(pre => {
+  const btn = document.createElement('button')
+  btn.className = 'copy-btn'
+  btn.textContent = 'Copy'
+  btn.addEventListener('click', () => {
+    const code = pre.querySelector('code') || pre
+    const text = code.textContent
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied!'
+      setTimeout(() => { btn.textContent = 'Copy' }, 1500)
+    })
+  })
+  pre.appendChild(btn)
+})
+
+// Close mobile sidebar on link click
+document.querySelectorAll('.sidebar a').forEach(a => {
+  a.addEventListener('click', () => {
+    document.querySelector('.sidebar').classList.remove('open')
+  })
+})
+</script>
+
+</body>
+</html>
