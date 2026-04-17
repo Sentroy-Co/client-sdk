@@ -1,0 +1,31 @@
+{
+  "name": "sentroy-co/client-sdk",
+  "description": "Server-side PHP SDK for Sentroy platform API",
+  "type": "library",
+  "license": "MIT",
+  "keywords": [
+    "sentroy",
+    "email",
+    "sdk",
+    "api",
+    "mail",
+    "php"
+  ],
+  "homepage": "https://github.com/Sentroy-Co/client-sdk",
+  "support": {
+    "issues": "https://github.com/Sentroy-Co/client-sdk/issues",
+    "source": "https://github.com/Sentroy-Co/client-sdk"
+  },
+  "require": {
+    "php": ">=7.0",
+    "ext-curl": "*",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Sentroy\\ClientSdk\\": "src/"
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
