@@ -379,12 +379,61 @@
 
     <!-- Auth -->
     <h2 id="authentication">Authentication</h2>
-    <p>All API requests require a Bearer access token in the <code>Authorization</code> header.</p>
-    <div class="endpoint">Authorization: Bearer stk_...</div>
-    <p>Create tokens from <strong>Admin &rarr; Access Tokens</strong> in your Sentroy dashboard.</p>
-    <p><strong>Base URL</strong></p>
+    <p>All API requests require a Bearer access token in the <code>Authorization</code> header. Create tokens from <strong>Admin &rarr; Access Tokens</strong> in your Sentroy dashboard.</p>
+
+    <p><strong>Base URL (for cURL / raw HTTP)</strong></p>
     <div class="endpoint">https://sentroy.com/api/companies/{company-slug}</div>
-    <p>Replace <code>{company-slug}</code> with your company slug in all endpoints below.</p>
+    <p>Replace <code>{company-slug}</code> with your company slug in all cURL endpoints below.</p>
+
+    <div class="callout">
+      SDKs only need <code>https://sentroy.com</code> as the base URL &mdash; the <code>/api/companies/{slug}</code> path is built automatically from your <code>companySlug</code> config.
+    </div>
+
+    <h3>Quick Start</h3>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="ts">TypeScript</button>
+        <button class="tab-btn" data-tab="go">Go</button>
+        <button class="tab-btn" data-tab="py">Python</button>
+        <button class="tab-btn" data-tab="php">PHP</button>
+      </div>
+      <div class="tab-panel active" data-panel="ts">
+<pre><code><span class="ts-kw">import</span> { Sentroy } <span class="ts-kw">from</span> <span class="ts-str">"@sentroy-co/client-sdk"</span>
+
+<span class="ts-kw">const</span> sentroy = <span class="ts-kw">new</span> <span class="ts-fn">Sentroy</span>({
+  baseUrl: <span class="ts-str">"https://sentroy.com"</span>,
+  companySlug: <span class="ts-str">"my-company"</span>,
+  accessToken: <span class="ts-str">"stk_..."</span>,
+})</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="go">
+<pre><code><span class="ts-kw">import</span> sentroy <span class="ts-str">"github.com/Sentroy-Co/client-sdk/go"</span>
+
+client := sentroy.<span class="ts-fn">New</span>(sentroy.Config{
+    BaseURL:     <span class="ts-str">"https://sentroy.com"</span>,
+    CompanySlug: <span class="ts-str">"my-company"</span>,
+    AccessToken: <span class="ts-str">"stk_..."</span>,
+})</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="py">
+<pre><code><span class="ts-kw">from</span> sentroy <span class="ts-kw">import</span> Sentroy
+
+sentroy = <span class="ts-fn">Sentroy</span>(
+    base_url=<span class="ts-str">"https://sentroy.com"</span>,
+    company_slug=<span class="ts-str">"my-company"</span>,
+    access_token=<span class="ts-str">"stk_..."</span>,
+)</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="php">
+<pre><code><span class="ts-kw">use</span> Sentroy\ClientSdk\Sentroy;
+
+$sentroy = <span class="ts-kw">new</span> <span class="ts-fn">Sentroy</span>([
+    <span class="ts-str">'base_url'</span>      => <span class="ts-str">'https://sentroy.com'</span>,
+    <span class="ts-str">'company_slug'</span> => <span class="ts-str">'my-company'</span>,
+    <span class="ts-str">'access_token'</span> => <span class="ts-str">'stk_...'</span>,
+]);</code></pre>
+      </div>
+    </div>
 
     <!-- SDKs -->
     <h2 id="sdks">SDKs</h2>
