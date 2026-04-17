@@ -23,7 +23,7 @@
   },
   "autoload": {
     "psr-4": {
-      "Sentroy\\ClientSdk\\": "src/"
+      "Sentroy\\ClientSdk\\": "php/src/"
     }
   },
   "minimum-stability": "stable",
