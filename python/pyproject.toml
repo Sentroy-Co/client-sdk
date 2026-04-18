@@ -22,6 +22,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = ["sentroy"]
+
 [project.urls]
 Homepage = "https://github.com/Sentroy-Co/client-sdk"
 Repository = "https://github.com/Sentroy-Co/client-sdk"
