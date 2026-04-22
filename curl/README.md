@@ -20,13 +20,19 @@ Authorization: Bearer stk_...
 
 > Access tokens can be created from **Admin > Access Tokens** in the Sentroy dashboard.
 
-**Base URL:**
+## Base URLs
+
+The platform splits its API across two path namespaces. Both live under the
+same origin (`https://sentroy.com`); the gateway forwards to the correct
+backend automatically.
 
 ```
-https://sentroy.com/api/companies/{company-slug}
+Mail     https://sentroy.com/api/mail/companies/{company-slug}
+Storage  https://sentroy.com/api/storage/companies/{company-slug}
 ```
 
-Replace `{company-slug}` with your company slug throughout the examples below.
+Replace `{company-slug}` with your company slug throughout the examples
+below. The same access token works across both namespaces.
 
 ---
 
@@ -35,14 +41,14 @@ Replace `{company-slug}` with your company slug throughout the examples below.
 ### List domains
 
 ```bash
-curl -s https://sentroy.com/api/companies/{company-slug}/domains \
+curl -s https://sentroy.com/api/mail/companies/{company-slug}/domains \
   -H "Authorization: Bearer stk_..."
 ```
 
 ### Get a domain
 
 ```bash
-curl -s https://sentroy.com/api/companies/{company-slug}/domains/{domain-id} \
+curl -s https://sentroy.com/api/mail/companies/{company-slug}/domains/{domain-id} \
   -H "Authorization: Bearer stk_..."
 ```
 
@@ -75,7 +81,7 @@ curl -s https://sentroy.com/api/companies/{company-slug}/domains/{domain-id} \
 ### List mailbox accounts
 
 ```bash
-curl -s https://sentroy.com/api/companies/{company-slug}/mailboxes \
+curl -s https://sentroy.com/api/mail/companies/{company-slug}/mailboxes \
   -H "Authorization: Bearer stk_..."
 ```
 
@@ -103,14 +109,14 @@ curl -s https://sentroy.com/api/companies/{company-slug}/mailboxes \
 ### List templates
 
 ```bash
-curl -s https://sentroy.com/api/companies/{company-slug}/templates \
+curl -s https://sentroy.com/api/mail/companies/{company-slug}/templates \
   -H "Authorization: Bearer stk_..."
 ```
 
 ### Get a template
 
 ```bash
-curl -s https://sentroy.com/api/companies/{company-slug}/templates/{template-id} \
+curl -s https://sentroy.com/api/mail/companies/{company-slug}/templates/{template-id} \
   -H "Authorization: Bearer stk_..."
 ```
 
@@ -144,7 +150,7 @@ Template fields like `name`, `subject`, and `mjmlBody` can be a plain string or 
 ### Send with a template
 
 ```bash
-curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
+curl -s -X POST https://sentroy.com/api/mail/companies/{company-slug}/send \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -163,7 +169,7 @@ curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
 ### Send with a specific language
 
 ```bash
-curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
+curl -s -X POST https://sentroy.com/api/mail/companies/{company-slug}/send \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -182,7 +188,7 @@ curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
 ### Send with raw HTML
 
 ```bash
-curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
+curl -s -X POST https://sentroy.com/api/mail/companies/{company-slug}/send \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -197,7 +203,7 @@ curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
 ### Send with attachments
 
 ```bash
-curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
+curl -s -X POST https://sentroy.com/api/mail/companies/{company-slug}/send \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -238,35 +244,35 @@ curl -s -X POST https://sentroy.com/api/companies/{company-slug}/send \
 ### List messages
 
 ```bash
-curl -s "https://sentroy.com/api/companies/{company-slug}/inbox?mailbox=info@example.com&folder=INBOX&page=1&limit=20" \
+curl -s "https://sentroy.com/api/mail/companies/{company-slug}/inbox?mailbox=info@example.com&folder=INBOX&page=1&limit=20" \
   -H "Authorization: Bearer stk_..."
 ```
 
 ### Get a message
 
 ```bash
-curl -s "https://sentroy.com/api/companies/{company-slug}/inbox/1234?mailbox=info@example.com" \
+curl -s "https://sentroy.com/api/mail/companies/{company-slug}/inbox/1234?mailbox=info@example.com" \
   -H "Authorization: Bearer stk_..."
 ```
 
 ### List IMAP folders
 
 ```bash
-curl -s "https://sentroy.com/api/companies/{company-slug}/inbox/mailboxes?mailbox=info@example.com" \
+curl -s "https://sentroy.com/api/mail/companies/{company-slug}/inbox/mailboxes?mailbox=info@example.com" \
   -H "Authorization: Bearer stk_..."
 ```
 
 ### Get thread by subject
 
 ```bash
-curl -s "https://sentroy.com/api/companies/{company-slug}/inbox/thread?subject=Re%3A+Project+update&mailbox=info@example.com" \
+curl -s "https://sentroy.com/api/mail/companies/{company-slug}/inbox/thread?subject=Re%3A+Project+update&mailbox=info@example.com" \
   -H "Authorization: Bearer stk_..."
 ```
 
 ### Mark as read
 
 ```bash
-curl -s -X POST https://sentroy.com/api/companies/{company-slug}/inbox/1234/read \
+curl -s -X POST https://sentroy.com/api/mail/companies/{company-slug}/inbox/1234/read \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
   -d '{"mailbox": "info@example.com", "folder": "INBOX"}'
@@ -275,14 +281,14 @@ curl -s -X POST https://sentroy.com/api/companies/{company-slug}/inbox/1234/read
 ### Mark as unread
 
 ```bash
-curl -s -X DELETE "https://sentroy.com/api/companies/{company-slug}/inbox/1234/read?mailbox=info@example.com&folder=INBOX" \
+curl -s -X DELETE "https://sentroy.com/api/mail/companies/{company-slug}/inbox/1234/read?mailbox=info@example.com&folder=INBOX" \
   -H "Authorization: Bearer stk_..."
 ```
 
 ### Move message
 
 ```bash
-curl -s -X POST https://sentroy.com/api/companies/{company-slug}/inbox/1234/move \
+curl -s -X POST https://sentroy.com/api/mail/companies/{company-slug}/inbox/1234/move \
   -H "Authorization: Bearer stk_..." \
   -H "Content-Type: application/json" \
   -d '{"to": "Trash", "from": "INBOX", "mailbox": "info@example.com"}'
@@ -291,7 +297,182 @@ curl -s -X POST https://sentroy.com/api/companies/{company-slug}/inbox/1234/move
 ### Delete message
 
 ```bash
-curl -s -X DELETE "https://sentroy.com/api/companies/{company-slug}/inbox/1234?mailbox=info@example.com" \
+curl -s -X DELETE "https://sentroy.com/api/mail/companies/{company-slug}/inbox/1234?mailbox=info@example.com" \
+  -H "Authorization: Bearer stk_..."
+```
+
+---
+
+## Buckets
+
+Buckets are isolated storage containers with their own visibility (public
+vs private) and usage counters.
+
+### List buckets
+
+```bash
+curl -s https://sentroy.com/api/storage/companies/{company-slug}/buckets \
+  -H "Authorization: Bearer stk_..."
+```
+
+### Get a bucket
+
+```bash
+curl -s https://sentroy.com/api/storage/companies/{company-slug}/buckets/{bucket-slug} \
+  -H "Authorization: Bearer stk_..."
+```
+
+### Create a bucket
+
+```bash
+curl -s -X POST https://sentroy.com/api/storage/companies/{company-slug}/buckets \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Product Assets",
+    "description": "Catalog images and downloads",
+    "isPublic": false
+  }'
+```
+
+### Update a bucket
+
+Toggling `isPublic` cascades to every file's S3 ACL and Media record.
+
+```bash
+curl -s -X PATCH https://sentroy.com/api/storage/companies/{company-slug}/buckets/{bucket-slug} \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"isPublic": true}'
+```
+
+### Delete a bucket
+
+Pass `?force=true` to purge every file (S3 objects + Media records) before
+removing the bucket; a non-empty bucket returns 409 otherwise.
+
+```bash
+curl -s -X DELETE "https://sentroy.com/api/storage/companies/{company-slug}/buckets/{bucket-slug}?force=true" \
+  -H "Authorization: Bearer stk_..."
+```
+
+<details>
+<summary>Example bucket response</summary>
+
+```json
+{
+  "data": {
+    "id": "65a3b2c1-...",
+    "companyId": "64f1e2d3-...",
+    "name": "Product Assets",
+    "slug": "product-assets",
+    "description": "Catalog images and downloads",
+    "isPublic": false,
+    "storageUsed": 12489533,
+    "fileCount": 42,
+    "createdAt": "2026-03-05T12:00:00.000Z",
+    "updatedAt": "2026-04-22T08:15:00.000Z"
+  }
+}
+```
+
+</details>
+
+---
+
+## Media
+
+Upload, list, download, and delete files inside a bucket.
+
+### List files
+
+```bash
+curl -s "https://sentroy.com/api/storage/companies/{company-slug}/buckets/{bucket-slug}/media?type=image&limit=50" \
+  -H "Authorization: Bearer stk_..."
+```
+
+### Get a file
+
+```bash
+curl -s https://sentroy.com/api/storage/companies/{company-slug}/buckets/{bucket-slug}/media/{media-id} \
+  -H "Authorization: Bearer stk_..."
+```
+
+### Upload a file
+
+Multipart/form-data. `file` is the binary body; extra text fields configure
+folder, visibility, and metadata.
+
+```bash
+curl -s -X POST https://sentroy.com/api/storage/companies/{company-slug}/buckets/{bucket-slug}/media \
+  -H "Authorization: Bearer stk_..." \
+  -F "file=@./photo.jpg" \
+  -F "folder=products" \
+  -F "public=true" \
+  -F "alt=Product cover" \
+  -F "tags=v1,cover"
+```
+
+<details>
+<summary>Example upload response</summary>
+
+```json
+{
+  "data": {
+    "id": "65b1a4d7-...",
+    "bucketId": "65a3b2c1-...",
+    "companyId": "64f1e2d3-...",
+    "fileName": "products/1714132800-photo.jpg",
+    "originalName": "photo.jpg",
+    "type": "image",
+    "size": 284930,
+    "mimeType": "image/jpeg",
+    "folder": "products",
+    "uploadedBy": "u_abc123",
+    "tags": ["v1", "cover"],
+    "alt": "Product cover",
+    "isPublic": true,
+    "imageMeta": {
+      "width": 2400,
+      "height": 1600,
+      "orientation": "landscape",
+      "thumbnails": [
+        { "width": 500, "height": 333, "fileName": "…/500-photo.jpg", "size": 45122 }
+      ]
+    },
+    "createdAt": "2026-04-22T09:00:00.000Z",
+    "updatedAt": "2026-04-22T09:00:00.000Z"
+  }
+}
+```
+
+</details>
+
+### Download a file
+
+Works for both public and private buckets — private ones are auth-gated
+through the storage app. Pass `?quality=500` to request a pre-generated
+thumbnail width (falls back to the original if the variant wasn't generated
+for this file).
+
+```bash
+# Original
+curl -o photo.jpg https://sentroy.com/api/storage/companies/{company-slug}/buckets/{bucket-slug}/media/{media-id}/download \
+  -H "Authorization: Bearer stk_..."
+
+# 500px wide thumbnail
+curl -o photo-500.jpg "https://sentroy.com/api/storage/companies/{company-slug}/buckets/{bucket-slug}/media/{media-id}/download?quality=500" \
+  -H "Authorization: Bearer stk_..."
+```
+
+### Delete a file
+
+Cascades through the CDN: S3 objects (original + thumbnails) are removed,
+then the Media record. If any S3 delete fails the record is kept so you
+can retry.
+
+```bash
+curl -s -X DELETE https://sentroy.com/api/storage/companies/{company-slug}/buckets/{bucket-slug}/media/{media-id} \
   -H "Authorization: Bearer stk_..."
 ```
 
@@ -314,7 +495,10 @@ All error responses follow the same format:
 | `401` | Invalid or expired access token |
 | `403` | Insufficient permissions or token/company mismatch |
 | `404` | Resource not found |
+| `409` | Conflict (e.g. deleting a non-empty bucket without `force`) |
+| `413` | Payload too large (e.g. upload exceeds storage quota) |
 | `500` | Internal server error |
+| `502` | Backend gateway error (CDN or mail server unreachable) |
 
 ---
 

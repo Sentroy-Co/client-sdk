@@ -6,7 +6,7 @@
 
 <p align="center">
   Server-side SDK to interact with the Sentroy platform API.<br />
-  List domains, manage mailboxes, fetch templates, read inbox, and send emails.
+  Manage mail (domains, mailboxes, templates, inbox, send) and storage (buckets, media) from a single entry point.
 </p>
 
 <p align="center">
@@ -172,6 +172,79 @@ const result = await sentroy.send.email({
     },
   ],
 })
+```
+
+### Buckets
+
+Storage is organized into **buckets** — isolated containers with their own
+visibility (public vs private) and usage counters.
+
+```ts
+// List all buckets in the company
+const buckets = await sentroy.buckets.list()
+
+// Get a single bucket by its slug
+const bucket = await sentroy.buckets.get("product-assets")
+
+// Create a bucket (slug auto-derived from name if omitted)
+const created = await sentroy.buckets.create({
+  name: "User Uploads",
+  description: "Avatars and profile media",
+  isPublic: false,
+})
+
+// Update a bucket — toggling isPublic cascades to every file's ACL
+await sentroy.buckets.update("product-assets", { isPublic: true })
+
+// Delete a bucket (409 if it has files; use force to purge everything)
+await sentroy.buckets.delete("product-assets", { force: true })
+```
+
+### Media
+
+Upload, list, download, and delete files inside a bucket. The same token
+that authorizes mail calls also authorizes storage calls.
+
+```ts
+// List files in a bucket
+const { items, total } = await sentroy.media.list("product-assets", {
+  type: "image",
+  limit: 50,
+})
+
+// Get a single media record
+const media = await sentroy.media.get("product-assets", mediaId)
+
+// Upload — browser (File from <input>)
+const input = document.querySelector<HTMLInputElement>("input[type=file]")!
+const file = input.files![0]
+const uploaded = await sentroy.media.upload("product-assets", {
+  body: file,
+  folder: "products",
+  tags: ["v1", "cover"],
+})
+console.log(uploaded.url) // Public URL from the CDN
+
+// Upload — Node.js (Blob from fs)
+import { openAsBlob } from "node:fs"
+const blob = await openAsBlob("./photo.jpg")
+const uploaded = await sentroy.media.upload("product-assets", {
+  body: blob,
+  filename: "photo.jpg",
+  isPublic: true,
+})
+
+// Download — streams from the storage backend; works for both public
+// and private buckets (auth-gated for private).
+const blob = await sentroy.media.download("product-assets", mediaId)
+// Variant: ask for a pre-generated thumbnail width (falls back to
+// original if that size wasn't generated for this file).
+const thumb = await sentroy.media.download("product-assets", mediaId, {
+  quality: 500,
+})
+
+// Delete — removes S3 objects (original + thumbnails) + Media record
+await sentroy.media.delete("product-assets", mediaId)
 ```
 
 ## Error Handling

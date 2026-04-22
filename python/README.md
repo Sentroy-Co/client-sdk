@@ -6,7 +6,7 @@
 
 <p align="center">
   Server-side SDK to interact with the Sentroy platform API.<br />
-  List domains, manage mailboxes, fetch templates, read inbox, and send emails.
+  Manage mail (domains, mailboxes, templates, inbox, send) and storage (buckets, media) from a single entry point.
 </p>
 
 <p align="center">
@@ -168,6 +168,74 @@ result = sentroy.send.email(SendParams(
         ),
     ],
 ))
+```
+
+### Buckets
+
+Storage is organized into **buckets** — isolated containers with their own
+visibility (public vs private) and usage counters.
+
+```python
+# List all buckets
+buckets = sentroy.buckets.list()
+
+# Get a single bucket by its slug
+bucket = sentroy.buckets.get("product-assets")
+
+# Create (slug auto-derived from name if omitted)
+bucket = sentroy.buckets.create(
+    name="User Uploads",
+    description="Avatars and profile media",
+    is_public=False,
+)
+
+# Update — toggling is_public cascades to every file's ACL
+bucket = sentroy.buckets.update("product-assets", is_public=True)
+
+# Delete (pass force=True to purge files first)
+sentroy.buckets.delete("product-assets", force=True)
+```
+
+### Media
+
+Upload, list, download, and delete files. The same access token that
+authorizes mail calls also authorizes storage.
+
+```python
+# List files in a bucket
+result = sentroy.media.list("product-assets", type="image", limit=50)
+print(result.total, len(result.items))
+
+# Get a single media record
+media = sentroy.media.get("product-assets", "media-id")
+
+# Upload from a file path
+uploaded = sentroy.media.upload(
+    "product-assets",
+    body="./photo.jpg",
+    folder="products",
+    tags=["v1", "cover"],
+    is_public=True,
+)
+
+# Upload from raw bytes
+uploaded = sentroy.media.upload(
+    "product-assets",
+    body=photo_bytes,
+    filename="photo.jpg",
+    content_type="image/jpeg",
+)
+
+# Download — returns (bytes, content_type)
+data, content_type = sentroy.media.download("product-assets", "media-id")
+
+# Thumbnail variant (500px wide — falls back to original if unavailable)
+thumb, _ = sentroy.media.download(
+    "product-assets", "media-id", quality=500,
+)
+
+# Delete
+sentroy.media.delete("product-assets", "media-id")
 ```
 
 ## Error Handling

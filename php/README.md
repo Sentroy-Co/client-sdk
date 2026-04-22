@@ -6,7 +6,7 @@
 
 <p align="center">
   Server-side SDK to interact with the Sentroy platform API.<br />
-  List domains, manage mailboxes, fetch templates, read inbox, and send emails.
+  Manage mail (domains, mailboxes, templates, inbox, send) and storage (buckets, media) from a single entry point.
 </p>
 
 <p align="center">
@@ -169,6 +169,70 @@ $result = $sentroy->send->email([
         ],
     ],
 ]);
+```
+
+### Buckets
+
+Storage is organized into **buckets** — isolated containers with their
+own visibility (public vs private) and usage counters.
+
+```php
+// List all buckets
+$buckets = $sentroy->buckets->getAll();
+
+// Get a single bucket by its slug
+$bucket = $sentroy->buckets->get('product-assets');
+
+// Create (slug auto-derived from name if omitted)
+$bucket = $sentroy->buckets->create([
+    'name' => 'User Uploads',
+    'description' => 'Avatars and profile media',
+    'is_public' => false,
+]);
+
+// Update — toggling is_public cascades to every file's ACL
+$bucket = $sentroy->buckets->update('product-assets', [
+    'is_public' => true,
+]);
+
+// Delete (pass true to purge files first; non-empty buckets 409 otherwise)
+$sentroy->buckets->delete('product-assets', true);
+```
+
+### Media
+
+Upload, list, download, and delete files. The same access token that
+authorizes mail calls also authorizes storage.
+
+```php
+// List files in a bucket
+$result = $sentroy->media->getAll('product-assets', [
+    'type' => 'image',
+    'limit' => 50,
+]);
+
+// Get a single media record
+$media = $sentroy->media->get('product-assets', 'media-id');
+
+// Upload from raw bytes
+$uploaded = $sentroy->media->upload('product-assets', [
+    'body' => file_get_contents('./photo.jpg'),
+    'filename' => 'photo.jpg',
+    'content_type' => 'image/jpeg',
+    'folder' => 'products',
+    'tags' => ['v1', 'cover'],
+    'is_public' => true,
+]);
+
+// Download — returns ['body' => string, 'content_type' => string]
+$res = $sentroy->media->download('product-assets', 'media-id');
+file_put_contents('./downloaded.jpg', $res['body']);
+
+// Thumbnail variant (500px wide — falls back to original if unavailable)
+$thumb = $sentroy->media->download('product-assets', 'media-id', 500);
+
+// Delete
+$sentroy->media->delete('product-assets', 'media-id');
 ```
 
 ## Error Handling

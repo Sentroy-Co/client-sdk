@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -114,4 +115,117 @@ func doRequest[T any](h *httpClient, method, path string, query map[string]strin
 	}
 
 	return envelope.Data, nil
+}
+
+// multipartField is one piece of a multipart/form-data request. Use text for
+// string values and file (with filename + content reader) for a file part.
+type multipartField struct {
+	name     string
+	text     string
+	filename string
+	reader   io.Reader
+}
+
+// postMultipart uploads a multipart/form-data body and unwraps the envelope.
+// Used by media upload; callers build []multipartField explicitly so we don't
+// hide the MIME boundary handling.
+func postMultipart[T any](h *httpClient, path string, fields []multipartField) (T, error) {
+	var zero T
+
+	fullURL, err := h.buildURL(path, nil)
+	if err != nil {
+		return zero, err
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	for _, f := range fields {
+		if f.reader != nil {
+			part, err := writer.CreateFormFile(f.name, f.filename)
+			if err != nil {
+				return zero, fmt.Errorf("failed to create form file: %w", err)
+			}
+			if _, err := io.Copy(part, f.reader); err != nil {
+				return zero, fmt.Errorf("failed to write file part: %w", err)
+			}
+		} else {
+			if err := writer.WriteField(f.name, f.text); err != nil {
+				return zero, fmt.Errorf("failed to write field: %w", err)
+			}
+		}
+	}
+	if err := writer.Close(); err != nil {
+		return zero, fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, fullURL, body)
+	if err != nil {
+		return zero, err
+	}
+	req.Header.Set("Authorization", "Bearer "+h.token)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return zero, err
+	}
+	defer resp.Body.Close()
+
+	rawBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return zero, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		var envelope apiResponse[json.RawMessage]
+		msg := fmt.Sprintf("Upload failed with status %d", resp.StatusCode)
+		if json.Unmarshal(rawBody, &envelope) == nil && envelope.Error != "" {
+			msg = envelope.Error
+		}
+		return zero, &SentroyError{
+			StatusCode: resp.StatusCode,
+			Body:       string(rawBody),
+			Message:    msg,
+		}
+	}
+
+	var envelope apiResponse[T]
+	if err := json.Unmarshal(rawBody, &envelope); err != nil {
+		return zero, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return envelope.Data, nil
+}
+
+// fetchRaw issues a GET request and returns the raw response body bytes,
+// without the {"data": T} envelope. Used by binary endpoints like media
+// download.
+func (h *httpClient) fetchRaw(path string, query map[string]string) ([]byte, string, error) {
+	fullURL, err := h.buildURL(path, query)
+	if err != nil {
+		return nil, "", err
+	}
+	req, err := http.NewRequest(http.MethodGet, fullURL, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+h.token)
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	rawBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read response body: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, "", &SentroyError{
+			StatusCode: resp.StatusCode,
+			Body:       string(rawBody),
+			Message:    fmt.Sprintf("Download failed with status %d", resp.StatusCode),
+		}
+	}
+	return rawBody, resp.Header.Get("Content-Type"), nil
 }

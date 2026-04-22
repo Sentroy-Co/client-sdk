@@ -3,19 +3,26 @@ from __future__ import annotations
 import urllib.parse
 
 from sentroy._http import SentroyError, _HttpClient
+from sentroy.buckets import BucketsResource
 from sentroy.domains import DomainsResource
 from sentroy.inbox import InboxResource
 from sentroy.mailboxes import MailboxesResource
+from sentroy.media import MediaResource
 from sentroy.send import SendResource
 from sentroy.templates import TemplatesResource
 from sentroy.types import (
     Attachment,
     AttachmentInfo,
+    Bucket,
     Domain,
     InboxListParams,
     LocalizedString,
     Mailbox,
     MailboxUser,
+    Media,
+    MediaImageMeta,
+    MediaListResult,
+    MediaThumbnail,
     MessageAddress,
     MessageDetail,
     MessageSummary,
@@ -28,6 +35,11 @@ from sentroy.types import (
 class Sentroy:
     """Sentroy platform client.
 
+    A single ``base_url`` covers every resource — mail (domains, mailboxes,
+    templates, inbox, send) and storage (buckets, media). The platform
+    gateway transparently forwards mail requests to the mail subdomain
+    and storage requests to the storage subdomain.
+
     Example::
 
         sentroy = Sentroy(
@@ -37,6 +49,7 @@ class Sentroy:
         )
 
         domains = sentroy.domains.list()
+        buckets = sentroy.buckets.list()
     """
 
     domains: DomainsResource
@@ -44,6 +57,8 @@ class Sentroy:
     templates: TemplatesResource
     inbox: InboxResource
     send: SendResource
+    buckets: BucketsResource
+    media: MediaResource
 
     def __init__(
         self,
@@ -54,14 +69,24 @@ class Sentroy:
         timeout: int = 30,
     ) -> None:
         base = base_url.rstrip("/")
-        api_base = f"{base}/api/companies/{urllib.parse.quote(company_slug, safe='')}"
-        http = _HttpClient(api_base, access_token, timeout)
+        slug = urllib.parse.quote(company_slug, safe="")
 
-        self.domains = DomainsResource(http)
-        self.mailboxes = MailboxesResource(http)
-        self.templates = TemplatesResource(http)
-        self.inbox = InboxResource(http)
-        self.send = SendResource(http)
+        # Mail resources go through the `/api/mail/companies` gateway path.
+        mail_http = _HttpClient(
+            f"{base}/api/mail/companies/{slug}", access_token, timeout
+        )
+        # Storage uses the same pattern via `/api/storage/companies`.
+        storage_http = _HttpClient(
+            f"{base}/api/storage/companies/{slug}", access_token, timeout
+        )
+
+        self.domains = DomainsResource(mail_http)
+        self.mailboxes = MailboxesResource(mail_http)
+        self.templates = TemplatesResource(mail_http)
+        self.inbox = InboxResource(mail_http)
+        self.send = SendResource(mail_http)
+        self.buckets = BucketsResource(storage_http)
+        self.media = MediaResource(storage_http)
 
 
 __all__ = [
@@ -69,11 +94,16 @@ __all__ = [
     "SentroyError",
     "Attachment",
     "AttachmentInfo",
+    "Bucket",
     "Domain",
     "InboxListParams",
     "LocalizedString",
     "Mailbox",
     "MailboxUser",
+    "Media",
+    "MediaImageMeta",
+    "MediaListResult",
+    "MediaThumbnail",
     "MessageAddress",
     "MessageDetail",
     "MessageSummary",

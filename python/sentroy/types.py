@@ -309,3 +309,141 @@ class SendResult:
             status=d.get("status", ""),
             scheduled_at=d.get("scheduledAt", d.get("scheduled_at")),
         )
+
+
+# -- Storage / Buckets --------------------------------------------------------
+
+@dataclass
+class Bucket:
+    """An isolated storage container with its own visibility and usage counters."""
+
+    id: str
+    company_id: str
+    name: str
+    slug: str
+    is_public: bool
+    storage_used: int
+    file_count: int
+    created_at: str
+    updated_at: str
+    description: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> Bucket:
+        return cls(
+            id=d["id"],
+            company_id=d.get("companyId", d.get("company_id", "")),
+            name=d.get("name", ""),
+            slug=d.get("slug", ""),
+            description=d.get("description"),
+            is_public=d.get("isPublic", d.get("is_public", False)),
+            storage_used=d.get("storageUsed", d.get("storage_used", 0)),
+            file_count=d.get("fileCount", d.get("file_count", 0)),
+            created_at=d.get("createdAt", d.get("created_at", "")),
+            updated_at=d.get("updatedAt", d.get("updated_at", "")),
+        )
+
+
+# -- Storage / Media ----------------------------------------------------------
+
+@dataclass
+class MediaThumbnail:
+    width: int
+    height: int
+    file_name: str
+    size: int
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> MediaThumbnail:
+        return cls(
+            width=d.get("width", 0),
+            height=d.get("height", 0),
+            file_name=d.get("fileName", d.get("file_name", "")),
+            size=d.get("size", 0),
+        )
+
+
+@dataclass
+class MediaImageMeta:
+    width: int
+    height: int
+    orientation: str  # "landscape" | "portrait" | "square"
+    thumbnails: list[MediaThumbnail]
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> MediaImageMeta:
+        return cls(
+            width=d.get("width", 0),
+            height=d.get("height", 0),
+            orientation=d.get("orientation", ""),
+            thumbnails=[
+                MediaThumbnail.from_dict(t) for t in d.get("thumbnails", [])
+            ],
+        )
+
+
+@dataclass
+class Media:
+    """A single file stored inside a bucket."""
+
+    id: str
+    bucket_id: str
+    company_id: str
+    file_name: str
+    original_name: str
+    type: str  # "image" | "video" | "audio" | "document" | "other"
+    size: int
+    mime_type: str
+    folder: str
+    uploaded_by: str
+    tags: list[str]
+    is_public: bool
+    created_at: str
+    updated_at: str
+    alt: Optional[str] = None
+    caption: Optional[str] = None
+    image_meta: Optional[MediaImageMeta] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> Media:
+        image_meta_raw = d.get("imageMeta", d.get("image_meta"))
+        return cls(
+            id=d["id"],
+            bucket_id=d.get("bucketId", d.get("bucket_id", "")),
+            company_id=d.get("companyId", d.get("company_id", "")),
+            file_name=d.get("fileName", d.get("file_name", "")),
+            original_name=d.get("originalName", d.get("original_name", "")),
+            type=d.get("type", "other"),
+            size=d.get("size", 0),
+            mime_type=d.get("mimeType", d.get("mime_type", "")),
+            folder=d.get("folder", ""),
+            uploaded_by=d.get("uploadedBy", d.get("uploaded_by", "")),
+            tags=d.get("tags", []),
+            alt=d.get("alt"),
+            caption=d.get("caption"),
+            is_public=d.get("isPublic", d.get("is_public", False)),
+            image_meta=(
+                MediaImageMeta.from_dict(image_meta_raw)
+                if isinstance(image_meta_raw, dict)
+                else None
+            ),
+            created_at=d.get("createdAt", d.get("created_at", "")),
+            updated_at=d.get("updatedAt", d.get("updated_at", "")),
+        )
+
+
+@dataclass
+class MediaListResult:
+    items: list[Media]
+    total: int
+    limit: int
+    skip: int
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> MediaListResult:
+        return cls(
+            items=[Media.from_dict(m) for m in d.get("items", [])],
+            total=d.get("total", 0),
+            limit=d.get("limit", 0),
+            skip=d.get("skip", 0),
+        )

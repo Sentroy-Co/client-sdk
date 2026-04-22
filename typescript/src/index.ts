@@ -4,6 +4,8 @@ import { Mailboxes } from "./resources/mailboxes"
 import { Templates } from "./resources/templates"
 import { Inbox } from "./resources/inbox"
 import { Send } from "./resources/send"
+import { Buckets } from "./resources/buckets"
+import { MediaResource } from "./resources/media"
 import type { SentroyClientConfig } from "./types"
 
 export class Sentroy {
@@ -12,9 +14,16 @@ export class Sentroy {
   public readonly templates: Templates
   public readonly inbox: Inbox
   public readonly send: Send
+  public readonly buckets: Buckets
+  public readonly media: MediaResource
 
   /**
    * Create a new Sentroy client.
+   *
+   * Single `baseUrl` covers every resource: the platform gateway routes
+   * `/api/mail/companies/...` to the mail backend and
+   * `/api/storage/companies/...` to the storage backend. The same
+   * access token works across both.
    *
    * @example
    * ```ts
@@ -25,18 +34,36 @@ export class Sentroy {
    * })
    *
    * const domains = await sentroy.domains.list()
+   * const buckets = await sentroy.buckets.list()
    * ```
    */
   constructor(config: SentroyClientConfig) {
-    const base = config.baseUrl.replace(/\/+$/, "")
-    const apiBase = `${base}/api/companies/${encodeURIComponent(config.companySlug)}`
-    const http = new HttpClient(apiBase, config.accessToken, config.timeout)
+    const root = config.baseUrl.replace(/\/+$/, "")
+    const slug = encodeURIComponent(config.companySlug)
 
-    this.domains = new Domains(http)
-    this.mailboxes = new Mailboxes(http)
-    this.templates = new Templates(http)
-    this.inbox = new Inbox(http)
-    this.send = new Send(http)
+    // Mail resources hit the `/api/mail/companies` gateway path — core
+    // forwards to the mail subdomain. The SDK consumer never sees the
+    // subdomain split.
+    const mailHttp = new HttpClient(
+      `${root}/api/mail/companies/${slug}`,
+      config.accessToken,
+      config.timeout,
+    )
+
+    // Storage uses the same pattern via `/api/storage/companies`.
+    const storageHttp = new HttpClient(
+      `${root}/api/storage/companies/${slug}`,
+      config.accessToken,
+      config.timeout,
+    )
+
+    this.domains = new Domains(mailHttp)
+    this.mailboxes = new Mailboxes(mailHttp)
+    this.templates = new Templates(mailHttp)
+    this.inbox = new Inbox(mailHttp)
+    this.send = new Send(mailHttp)
+    this.buckets = new Buckets(storageHttp)
+    this.media = new MediaResource(storageHttp)
   }
 }
 
@@ -57,6 +84,16 @@ export type {
   Attachment,
   SendParams,
   SendResult,
+  Bucket,
+  CreateBucketParams,
+  UpdateBucketParams,
+  Media,
+  MediaType,
+  MediaThumbnail,
+  MediaImageMeta,
+  MediaListParams,
+  MediaListResult,
+  UploadMediaParams,
 } from "./types"
 
 export { SentroyError } from "./http"

@@ -25,11 +25,22 @@
 
 All SDKs provide the same API surface:
 
+**Mail**
+
 - **Domains** — List and retrieve verified domains
 - **Mailboxes** — List mailbox accounts
 - **Templates** — List and retrieve email templates
 - **Inbox** — Read messages, list folders, manage threads, move/delete
 - **Send** — Send emails with templates or raw HTML
+
+**Storage**
+
+- **Buckets** — Create, list, update, and delete isolated file containers
+- **Media** — Upload, list, download, and delete files inside a bucket
+
+The SDK takes a single `baseUrl` (the platform root, e.g.
+`https://sentroy.com`); the gateway transparently routes mail calls to
+the mail subdomain and storage calls to the storage subdomain.
 
 ## Authentication
 

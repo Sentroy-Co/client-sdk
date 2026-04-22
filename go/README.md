@@ -6,7 +6,7 @@
 
 <p align="center">
   Server-side SDK to interact with the Sentroy platform API.<br />
-  List domains, manage mailboxes, fetch templates, read inbox, and send emails.
+  Manage mail (domains, mailboxes, templates, inbox, send) and storage (buckets, media) from a single entry point.
 </p>
 
 <p align="center">
@@ -186,6 +186,73 @@ result, err := client.Send.Email(sentroy.SendParams{
         },
     },
 })
+```
+
+### Buckets
+
+Storage is organized into **buckets** — isolated containers with their own
+visibility (public vs private) and usage counters.
+
+```go
+// List all buckets
+buckets, err := client.Buckets.List()
+
+// Get a single bucket by its slug
+bucket, err := client.Buckets.Get("product-assets")
+
+// Create (slug auto-derived from name if omitted)
+bucket, err := client.Buckets.Create(sentroy.CreateBucketParams{
+    Name:        "User Uploads",
+    Description: "Avatars and profile media",
+    IsPublic:    false,
+})
+
+// Update — toggling IsPublic cascades to every file's ACL
+bucket, err := client.Buckets.Update("product-assets", sentroy.UpdateBucketParams{
+    IsPublic: sentroy.Ptr(true),
+})
+
+// Delete (use Force to purge files before removing)
+err := client.Buckets.Delete("product-assets", &sentroy.DeleteOptions{Force: true})
+```
+
+### Media
+
+Upload, list, download, and delete files. The same access token that
+authorizes mail calls also authorizes storage.
+
+```go
+import "os"
+
+// List files in a bucket
+result, err := client.Media.List("product-assets", &sentroy.MediaListParams{
+    Type:  sentroy.MediaTypeImage,
+    Limit: 50,
+})
+
+// Get a single media record
+media, err := client.Media.Get("product-assets", "media-id")
+
+// Upload
+f, err := os.Open("./photo.jpg")
+defer f.Close()
+uploaded, err := client.Media.Upload("product-assets", sentroy.UploadMediaParams{
+    Filename: "photo.jpg",
+    Body:     f,
+    Folder:   "products",
+    Tags:     []string{"v1", "cover"},
+    IsPublic: sentroy.Ptr(true),
+})
+
+// Download — returns raw bytes + Content-Type
+bytes, contentType, err := client.Media.Download("product-assets", "media-id", nil)
+
+// Download a thumbnail variant (500px wide)
+thumb, _, err := client.Media.Download("product-assets", "media-id",
+    &sentroy.DownloadOptions{Quality: 500})
+
+// Delete
+err := client.Media.Delete("product-assets", "media-id")
 ```
 
 ## Error Handling

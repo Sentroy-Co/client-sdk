@@ -91,5 +91,104 @@ class _HttpClient:
     def put(self, path: str, body: Optional[Any] = None) -> Any:
         return self._request("PUT", path, body=body)
 
-    def delete(self, path: str, query: Optional[dict[str, Any]] = None) -> Any:
+    def patch(self, path: str, body: Optional[Any] = None) -> Any:
+        return self._request("PATCH", path, body=body)
+
+    def delete(
+        self,
+        path: str,
+        query: Optional[dict[str, Any]] = None,
+    ) -> Any:
         return self._request("DELETE", path, query=query)
+
+    def post_multipart(
+        self,
+        path: str,
+        *,
+        file: tuple[str, bytes, Optional[str]],
+        fields: Optional[dict[str, str]] = None,
+    ) -> Any:
+        """Upload a file via multipart/form-data.
+
+        ``file`` is a (filename, content_bytes, content_type or None) tuple.
+        ``fields`` are extra string form fields (folder, public, tags, …).
+        """
+        import uuid
+
+        boundary = f"----SentroyBoundary{uuid.uuid4().hex}"
+        body_parts: list[bytes] = []
+
+        filename, content, content_type = file
+        content_type = content_type or "application/octet-stream"
+
+        for name, value in (fields or {}).items():
+            if value is None:
+                continue
+            body_parts.append(f"--{boundary}\r\n".encode("utf-8"))
+            body_parts.append(
+                f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode(
+                    "utf-8"
+                )
+            )
+            body_parts.append(str(value).encode("utf-8"))
+            body_parts.append(b"\r\n")
+
+        body_parts.append(f"--{boundary}\r\n".encode("utf-8"))
+        body_parts.append(
+            (
+                f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+                f"Content-Type: {content_type}\r\n\r\n"
+            ).encode("utf-8")
+        )
+        body_parts.append(content)
+        body_parts.append(b"\r\n")
+        body_parts.append(f"--{boundary}--\r\n".encode("utf-8"))
+
+        data = b"".join(body_parts)
+        url = self._build_url(path)
+
+        headers = {
+            "Authorization": f"Bearer {self._token}",
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+        }
+        req = urllib.request.Request(
+            url, data=data, headers=headers, method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self._timeout) as resp:
+                raw = resp.read().decode("utf-8")
+                envelope = json.loads(raw) if raw else {}
+                return envelope.get("data")
+        except urllib.error.HTTPError as exc:
+            raw_body = exc.read().decode("utf-8") if exc.fp else ""
+            try:
+                envelope = json.loads(raw_body)
+            except (json.JSONDecodeError, ValueError):
+                envelope = {"error": raw_body}
+            message = (
+                envelope.get("error") or f"Upload failed with status {exc.code}"
+            )
+            raise SentroyError(exc.code, envelope, message) from exc
+
+    def fetch_raw(
+        self,
+        path: str,
+        query: Optional[dict[str, Any]] = None,
+    ) -> tuple[bytes, str]:
+        """GET a binary endpoint. Returns (bytes, content_type)."""
+        url = self._build_url(path, query)
+        req = urllib.request.Request(
+            url,
+            headers={"Authorization": f"Bearer {self._token}"},
+            method="GET",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self._timeout) as resp:
+                return resp.read(), resp.headers.get("Content-Type", "")
+        except urllib.error.HTTPError as exc:
+            raw_body = exc.read().decode("utf-8") if exc.fp else ""
+            raise SentroyError(
+                exc.code,
+                {"error": raw_body},
+                f"Download failed with status {exc.code}",
+            ) from exc

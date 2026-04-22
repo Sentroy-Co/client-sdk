@@ -19,11 +19,22 @@ class Sentroy
     /** @var Send */
     public $send;
 
+    /** @var Buckets */
+    public $buckets;
+
+    /** @var Media */
+    public $media;
+
     /**
      * Create a new Sentroy client.
      *
+     * A single base_url covers every resource — mail (domains, mailboxes,
+     * templates, inbox, send) and storage (buckets, media). The platform
+     * gateway transparently forwards mail requests to the mail subdomain
+     * and storage requests to the storage subdomain.
+     *
      * @param array $config {
-     *     @type string $base_url      Sentroy instance URL
+     *     @type string $base_url      Sentroy platform root (e.g. https://sentroy.com)
      *     @type string $company_slug  Company slug
      *     @type string $access_token  Access token (stk_...)
      *     @type int    $timeout       Request timeout in seconds (default: 30)
@@ -45,15 +56,27 @@ class Sentroy
 
         $base = rtrim($config['base_url'], '/');
         $slug = rawurlencode($config['company_slug']);
-        $apiBase = $base . '/api/companies/' . $slug;
         $timeout = isset($config['timeout']) ? (int) $config['timeout'] : 30;
 
-        $http = new HttpClient($apiBase, $config['access_token'], $timeout);
+        // Mail resources flow through the /api/mail/companies gateway path.
+        $mailHttp = new HttpClient(
+            $base . '/api/mail/companies/' . $slug,
+            $config['access_token'],
+            $timeout
+        );
+        // Storage uses the same pattern via /api/storage/companies.
+        $storageHttp = new HttpClient(
+            $base . '/api/storage/companies/' . $slug,
+            $config['access_token'],
+            $timeout
+        );
 
-        $this->domains = new Domains($http);
-        $this->mailboxes = new Mailboxes($http);
-        $this->templates = new Templates($http);
-        $this->inbox = new Inbox($http);
-        $this->send = new Send($http);
+        $this->domains = new Domains($mailHttp);
+        $this->mailboxes = new Mailboxes($mailHttp);
+        $this->templates = new Templates($mailHttp);
+        $this->inbox = new Inbox($mailHttp);
+        $this->send = new Send($mailHttp);
+        $this->buckets = new Buckets($storageHttp);
+        $this->media = new Media($storageHttp);
     }
 }

@@ -10,6 +10,12 @@
 //	})
 //
 //	domains, err := client.Domains.List()
+//	buckets, err := client.Buckets.List()
+//
+// The SDK uses a single BaseURL (the platform root) for both mail and
+// storage resources. The platform's API gateway transparently routes
+// mail calls to the mail subdomain and storage calls to the storage
+// subdomain; consumers never see the split.
 package sentroy
 
 import (
@@ -20,7 +26,8 @@ import (
 
 // Config holds the parameters needed to create a [Client].
 type Config struct {
-	// BaseURL is the Sentroy instance URL (e.g. "https://sentroy.com").
+	// BaseURL is the Sentroy platform root (e.g. "https://sentroy.com").
+	// Both mail and storage resources are reached through this single origin.
 	BaseURL string
 	// CompanySlug is your company identifier.
 	CompanySlug string
@@ -37,6 +44,8 @@ type Client struct {
 	Templates *TemplatesService
 	Inbox     *InboxService
 	Send      *SendService
+	Buckets   *BucketsService
+	Media     *MediaService
 }
 
 // New creates a new Sentroy [Client] with the given configuration.
@@ -46,14 +55,30 @@ func New(config Config) *Client {
 	}
 
 	base := strings.TrimRight(config.BaseURL, "/")
-	apiBase := base + "/api/companies/" + url.PathEscape(config.CompanySlug)
-	h := newHTTPClient(apiBase, config.AccessToken, config.Timeout)
+	slug := url.PathEscape(config.CompanySlug)
+
+	// Mail resources hit the `/api/mail/companies` gateway path — core
+	// forwards to the mail subdomain.
+	mailHTTP := newHTTPClient(
+		base+"/api/mail/companies/"+slug,
+		config.AccessToken,
+		config.Timeout,
+	)
+
+	// Storage uses the same pattern via `/api/storage/companies`.
+	storageHTTP := newHTTPClient(
+		base+"/api/storage/companies/"+slug,
+		config.AccessToken,
+		config.Timeout,
+	)
 
 	return &Client{
-		Domains:   newDomainsService(h),
-		Mailboxes: newMailboxesService(h),
-		Templates: newTemplatesService(h),
-		Inbox:     newInboxService(h),
-		Send:      newSendService(h),
+		Domains:   newDomainsService(mailHTTP),
+		Mailboxes: newMailboxesService(mailHTTP),
+		Templates: newTemplatesService(mailHTTP),
+		Inbox:     newInboxService(mailHTTP),
+		Send:      newSendService(mailHTTP),
+		Buckets:   newBucketsService(storageHTTP),
+		Media:     newMediaService(storageHTTP),
 	}
 }

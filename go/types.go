@@ -1,5 +1,7 @@
 package sentroy
 
+import "io"
+
 // apiResponse is the standard API envelope returned by all endpoints.
 type apiResponse[T any] struct {
 	Data  T      `json:"data"`
@@ -148,4 +150,111 @@ type SendResult struct {
 	MailLogID   string `json:"mailLogId"`
 	Status      string `json:"status"`
 	ScheduledAt string `json:"scheduledAt,omitempty"`
+}
+
+// Bucket represents a storage bucket — an isolated container for files
+// with its own visibility and usage counters.
+type Bucket struct {
+	ID          string `json:"id"`
+	CompanyID   string `json:"companyId"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Description string `json:"description,omitempty"`
+	IsPublic    bool   `json:"isPublic"`
+	StorageUsed int64  `json:"storageUsed"`
+	FileCount   int    `json:"fileCount"`
+	CreatedAt   string `json:"createdAt"`
+	UpdatedAt   string `json:"updatedAt"`
+}
+
+// CreateBucketParams is the request body for creating a bucket.
+type CreateBucketParams struct {
+	Name        string `json:"name"`
+	Slug        string `json:"slug,omitempty"`
+	Description string `json:"description,omitempty"`
+	IsPublic    bool   `json:"isPublic,omitempty"`
+}
+
+// UpdateBucketParams is the request body for updating a bucket. IsPublic
+// is a pointer so you can distinguish "don't change" from "set to false".
+type UpdateBucketParams struct {
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	IsPublic    *bool  `json:"isPublic,omitempty"`
+}
+
+// MediaType categorizes a stored file by content type.
+type MediaType string
+
+const (
+	MediaTypeImage    MediaType = "image"
+	MediaTypeVideo    MediaType = "video"
+	MediaTypeAudio    MediaType = "audio"
+	MediaTypeDocument MediaType = "document"
+	MediaTypeOther    MediaType = "other"
+)
+
+// MediaThumbnail is a pre-generated resized variant of an image.
+type MediaThumbnail struct {
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
+	FileName string `json:"fileName"`
+	Size     int64  `json:"size"`
+}
+
+// MediaImageMeta holds image-specific metadata for a media record.
+type MediaImageMeta struct {
+	Width       int              `json:"width"`
+	Height      int              `json:"height"`
+	Orientation string           `json:"orientation"` // landscape | portrait | square
+	Thumbnails  []MediaThumbnail `json:"thumbnails"`
+}
+
+// Media represents a single file stored inside a bucket.
+type Media struct {
+	ID           string          `json:"id"`
+	BucketID     string          `json:"bucketId"`
+	CompanyID    string          `json:"companyId"`
+	FileName     string          `json:"fileName"`
+	OriginalName string          `json:"originalName"`
+	Type         MediaType       `json:"type"`
+	Size         int64           `json:"size"`
+	MimeType     string          `json:"mimeType"`
+	Folder       string          `json:"folder"`
+	UploadedBy   string          `json:"uploadedBy"`
+	Tags         []string        `json:"tags"`
+	Alt          string          `json:"alt,omitempty"`
+	Caption      string          `json:"caption,omitempty"`
+	IsPublic     bool            `json:"isPublic"`
+	ImageMeta    *MediaImageMeta `json:"imageMeta,omitempty"`
+	CreatedAt    string          `json:"createdAt"`
+	UpdatedAt    string          `json:"updatedAt"`
+}
+
+// MediaListResult is the paginated response from Media.List.
+type MediaListResult struct {
+	Items []Media `json:"items"`
+	Total int     `json:"total"`
+	Limit int     `json:"limit"`
+	Skip  int     `json:"skip"`
+}
+
+// MediaListParams are the optional filters for Media.List.
+type MediaListParams struct {
+	Type   MediaType
+	Folder string
+	Limit  int
+	Skip   int
+}
+
+// UploadMediaParams configures a single Media.Upload call. Body accepts
+// any io.Reader — *os.File, bytes.Buffer, http.Response.Body all work.
+type UploadMediaParams struct {
+	Filename string
+	Body     io.Reader
+	Folder   string
+	IsPublic *bool
+	Alt      string
+	Caption  string
+	Tags     []string
 }
