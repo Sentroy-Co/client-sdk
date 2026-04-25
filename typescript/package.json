@@ -1,6 +1,6 @@
 {
   "name": "@sentroy-co/client-sdk",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Server-side TypeScript SDK for Sentroy platform API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

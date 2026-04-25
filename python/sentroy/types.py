@@ -447,3 +447,91 @@ class MediaListResult:
             limit=d.get("limit", 0),
             skip=d.get("skip", 0),
         )
+
+
+# ── Storage quota / usage ─────────────────────────────────────────────────
+
+
+@dataclass
+class StorageQuota:
+    """Plan-level storage quota for the company.
+
+    Mail and storage share the same byte pool: ``used`` is storage's
+    slice, ``mail_used`` what the mail product has occupied. ``limit``
+    of ``0`` means the plan is unlimited.
+    """
+
+    used: int
+    limit: int
+    mail_used: int
+    plan_name: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> StorageQuota:
+        return cls(
+            used=d.get("used", 0),
+            limit=d.get("limit", 0),
+            mail_used=d.get("mailUsed", 0),
+            plan_name=d.get("planName"),
+        )
+
+
+@dataclass
+class StorageUsageBucket:
+    """One bucket inside :class:`StorageUsage`."""
+
+    id: str
+    name: str
+    slug: str
+    storage_used: int
+    file_count: int
+    is_public: bool
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> StorageUsageBucket:
+        return cls(
+            id=d.get("id", ""),
+            name=d.get("name", ""),
+            slug=d.get("slug", ""),
+            storage_used=d.get("storageUsed", 0),
+            file_count=d.get("fileCount", 0),
+            is_public=bool(d.get("isPublic", False)),
+        )
+
+
+@dataclass
+class StorageUsageByType:
+    """One media-type aggregation row."""
+
+    type: str
+    count: int
+    bytes: int
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> StorageUsageByType:
+        return cls(
+            type=d.get("type", "other"),
+            count=d.get("count", 0),
+            bytes=d.get("bytes", 0),
+        )
+
+
+@dataclass
+class StorageUsage:
+    """Combined usage snapshot returned by ``client.storage.usage()``."""
+
+    quota: StorageQuota
+    buckets: list[StorageUsageBucket]
+    by_type: list[StorageUsageByType]
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> StorageUsage:
+        return cls(
+            quota=StorageQuota.from_dict(d.get("quota") or {}),
+            buckets=[
+                StorageUsageBucket.from_dict(b) for b in (d.get("buckets") or [])
+            ],
+            by_type=[
+                StorageUsageByType.from_dict(t) for t in (d.get("byType") or [])
+            ],
+        )

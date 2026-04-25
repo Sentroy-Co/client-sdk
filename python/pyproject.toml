@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sentroy-client-sdk"
-version = "2.0.0"
+version = "2.1.0"
 description = "Server-side Python SDK for Sentroy platform API"
 readme = "README.md"
 license = "MIT"

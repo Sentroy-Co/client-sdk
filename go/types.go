@@ -258,3 +258,39 @@ type UploadMediaParams struct {
 	Caption  string
 	Tags     []string
 }
+
+// ── Storage quota / usage ─────────────────────────────────────────────────
+
+// StorageQuota is the plan-level storage quota for a company. Mail and
+// storage share the same byte pool: Used is the storage slice, MailUsed
+// what the mail product has occupied. Limit of 0 means unlimited.
+type StorageQuota struct {
+	Used     int64  `json:"used"`
+	Limit    int64  `json:"limit"`
+	MailUsed int64  `json:"mailUsed"`
+	PlanName string `json:"planName,omitempty"`
+}
+
+// StorageUsageBucket describes one bucket's contribution to total usage.
+type StorageUsageBucket struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	StorageUsed int64  `json:"storageUsed"`
+	FileCount   int64  `json:"fileCount"`
+	IsPublic    bool   `json:"isPublic"`
+}
+
+// StorageUsageByType is one media-type aggregation row.
+type StorageUsageByType struct {
+	Type  string `json:"type"`
+	Count int64  `json:"count"`
+	Bytes int64  `json:"bytes"`
+}
+
+// StorageUsage is the combined dashboard payload returned by Storage.Usage.
+type StorageUsage struct {
+	Quota   StorageQuota         `json:"quota"`
+	Buckets []StorageUsageBucket `json:"buckets"`
+	ByType  []StorageUsageByType `json:"byType"`
+}

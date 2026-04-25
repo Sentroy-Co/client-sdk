@@ -268,3 +268,44 @@ export interface UploadMediaParams {
   caption?: string
   tags?: string[]
 }
+
+// ── Storage quota / usage ─────────────────────────────────────────────────
+
+/**
+ * Plan-level storage quota for the company. Mail and storage share the
+ * same byte pool; `used` reports storage's slice and `mailUsed` what mail
+ * has occupied. `limit` of `0` means the plan is unlimited.
+ */
+export interface StorageQuota {
+  used: number
+  limit: number
+  mailUsed: number
+  planName?: string
+}
+
+/** Per-bucket usage row inside `StorageUsage.buckets`. */
+export interface StorageUsageBucket {
+  id: string
+  name: string
+  slug: string
+  storageUsed: number
+  fileCount: number
+  isPublic: boolean
+}
+
+/** Per-type aggregation row inside `StorageUsage.byType`. */
+export interface StorageUsageByType {
+  type: MediaType
+  count: number
+  bytes: number
+}
+
+/**
+ * Combined snapshot for a "Usage" dashboard: plan quota + every bucket
+ * with its byte/file counts + a media-type breakdown across the company.
+ */
+export interface StorageUsage {
+  quota: StorageQuota
+  buckets: StorageUsageBucket[]
+  byType: StorageUsageByType[]
+}

@@ -25,6 +25,9 @@ class Sentroy
     /** @var Media */
     public $media;
 
+    /** @var Storage */
+    public $storage;
+
     /**
      * Create a new Sentroy client.
      *
@@ -78,5 +81,6 @@ class Sentroy
         $this->send = new Send($mailHttp);
         $this->buckets = new Buckets($storageHttp);
         $this->media = new Media($storageHttp);
+        $this->storage = new Storage($storageHttp);
     }
 }

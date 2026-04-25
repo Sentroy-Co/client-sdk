@@ -195,11 +195,13 @@
     .method-get { background: #dcfce7; color: #166534; }
     .method-post { background: #dbeafe; color: #1e40af; }
     .method-put { background: #fef3c7; color: #92400e; }
+    .method-patch { background: #ede9fe; color: #5b21b6; }
     .method-delete { background: #fee2e2; color: #991b1b; }
     @media (prefers-color-scheme: dark) {
       .method-get { background: #14532d; color: #86efac; }
       .method-post { background: #1e3a5f; color: #93c5fd; }
       .method-put { background: #451a03; color: #fcd34d; }
+      .method-patch { background: #2e1065; color: #c4b5fd; }
       .method-delete { background: #450a0a; color: #fca5a5; }
     }
 
@@ -369,6 +371,25 @@
       <a href="#inbox-read" class="sub">Mark read / unread</a>
       <a href="#inbox-move" class="sub">Move message</a>
       <a href="#inbox-delete" class="sub">Delete message</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Storage</div>
+      <a href="#buckets">Buckets</a>
+      <a href="#buckets-list" class="sub">List buckets</a>
+      <a href="#buckets-get" class="sub">Get bucket</a>
+      <a href="#buckets-create" class="sub">Create bucket</a>
+      <a href="#buckets-update" class="sub">Update bucket</a>
+      <a href="#buckets-delete" class="sub">Delete bucket</a>
+      <a href="#media">Media</a>
+      <a href="#media-list" class="sub">List files</a>
+      <a href="#media-get" class="sub">Get file</a>
+      <a href="#media-upload" class="sub">Upload file</a>
+      <a href="#media-download" class="sub">Download file</a>
+      <a href="#media-delete" class="sub">Delete file</a>
+      <a href="#storage-usage">Usage</a>
+      <a href="#storage-quota" class="sub">Storage quota</a>
+      <a href="#storage-breakdown" class="sub">Usage breakdown</a>
     </div>
   </nav>
 
@@ -942,6 +963,269 @@ $sentroy = <span class="ts-kw">new</span> <span class="ts-fn">Sentroy</span>([
 <pre><code><span class="ts-kw">await</span> sentroy.inbox.<span class="ts-fn">delete</span>(1234, { mailbox: <span class="ts-str">"info@example.com"</span> })</code></pre>
       </div>
     </div>
+
+    <h2 id="buckets">Buckets</h2>
+    <p>Isolated storage containers with their own visibility (public vs private)
+    and usage counters. Storage requests use the <code>/api/storage/companies/{company-slug}</code>
+    base URL — the same access token that signs mail calls.</p>
+
+    <h3 id="buckets-list">List buckets</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /buckets</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s https://sentroy.com/api/storage/companies/{company-slug}/buckets \
+  -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> buckets = <span class="ts-kw">await</span> sentroy.buckets.<span class="ts-fn">list</span>()</code></pre>
+      </div>
+    </div>
+
+    <h3 id="buckets-get">Get bucket</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /buckets/{bucket-slug}</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s https://sentroy.com/api/storage/companies/{company-slug}/buckets/public \
+  -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> bucket = <span class="ts-kw">await</span> sentroy.buckets.<span class="ts-fn">get</span>(<span class="ts-str">"public"</span>)</code></pre>
+      </div>
+    </div>
+
+    <h3 id="buckets-create">Create bucket</h3>
+    <div class="endpoint"><span class="method method-post">POST</span> /buckets</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s -X POST https://sentroy.com/api/storage/companies/{company-slug}/buckets \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Public assets",
+    "slug": "public",
+    "isPublic": true
+  }'</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">await</span> sentroy.buckets.<span class="ts-fn">create</span>({
+  name: <span class="ts-str">"Public assets"</span>,
+  slug: <span class="ts-str">"public"</span>,
+  isPublic: <span class="ts-kw">true</span>,
+})</code></pre>
+      </div>
+    </div>
+    <p>If <code>slug</code> is omitted the server derives one from <code>name</code>.</p>
+
+    <h3 id="buckets-update">Update bucket</h3>
+    <div class="endpoint"><span class="method method-patch">PATCH</span> /buckets/{bucket-slug}</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s -X PATCH https://sentroy.com/api/storage/companies/{company-slug}/buckets/public \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "isPublic": false }'</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">await</span> sentroy.buckets.<span class="ts-fn">update</span>(<span class="ts-str">"public"</span>, { isPublic: <span class="ts-kw">false</span> })</code></pre>
+      </div>
+    </div>
+    <p>Toggling <code>isPublic</code> cascades to every existing file's S3 ACL and
+    Media record — large buckets can take a while.</p>
+
+    <h3 id="buckets-delete">Delete bucket</h3>
+    <div class="endpoint"><span class="method method-delete">DELETE</span> /buckets/{bucket-slug}</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s -X DELETE "https://sentroy.com/api/storage/companies/{company-slug}/buckets/public?force=true" \
+  -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">await</span> sentroy.buckets.<span class="ts-fn">delete</span>(<span class="ts-str">"public"</span>, { force: <span class="ts-kw">true</span> })</code></pre>
+      </div>
+    </div>
+    <p>Without <code>force=true</code>, a non-empty bucket returns 409. With the
+    flag set, every file is purged from S3 and the Media records are removed
+    before the bucket itself is dropped.</p>
+
+    <h2 id="media">Media</h2>
+    <p>Files inside a bucket. Uploads are multipart; images receive a
+    thumbnail ladder automatically.</p>
+
+    <h3 id="media-list">List files</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /buckets/{bucket-slug}/media</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s "https://sentroy.com/api/storage/companies/{company-slug}/buckets/public/media?type=image&amp;limit=50" \
+  -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> page = <span class="ts-kw">await</span> sentroy.media.<span class="ts-fn">list</span>(<span class="ts-str">"public"</span>, {
+  type: <span class="ts-str">"image"</span>,
+  limit: <span class="ts-num">50</span>,
+})</code></pre>
+      </div>
+    </div>
+    <p>Query params: <code>type</code> (image | video | audio | document | other),
+    <code>folder</code>, <code>limit</code> (default 50, max 200), <code>skip</code>.</p>
+
+    <h3 id="media-get">Get file</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /buckets/{bucket-slug}/media/{media-id}</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s https://sentroy.com/api/storage/companies/{company-slug}/buckets/public/media/65f8a1... \
+  -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> file = <span class="ts-kw">await</span> sentroy.media.<span class="ts-fn">get</span>(<span class="ts-str">"public"</span>, <span class="ts-str">"65f8a1..."</span>)</code></pre>
+      </div>
+    </div>
+
+    <h3 id="media-upload">Upload file</h3>
+    <div class="endpoint"><span class="method method-post">POST</span> /buckets/{bucket-slug}/media</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s -X POST https://sentroy.com/api/storage/companies/{company-slug}/buckets/public/media \
+  -H "Authorization: Bearer stk_..." \
+  -F "file=@./photo.jpg" \
+  -F "folder=marketing" \
+  -F "public=true" \
+  -F "alt=Hero shot" \
+  -F "tags=hero,landing"</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> media = <span class="ts-kw">await</span> sentroy.media.<span class="ts-fn">upload</span>(<span class="ts-str">"public"</span>, {
+  body: file,
+  folder: <span class="ts-str">"marketing"</span>,
+  isPublic: <span class="ts-kw">true</span>,
+  alt: <span class="ts-str">"Hero shot"</span>,
+  tags: [<span class="ts-str">"hero"</span>, <span class="ts-str">"landing"</span>],
+})
+console.<span class="ts-fn">log</span>(media.url)</code></pre>
+      </div>
+    </div>
+    <p>Multipart fields: <code>file</code> (required), <code>folder</code>,
+    <code>public</code>, <code>alt</code>, <code>caption</code>, <code>tags</code>
+    (comma-separated). Public files are accepted only when the bucket itself
+    is public. Image uploads return thumbnail variants under
+    <code>imageMeta.thumbnails</code>.</p>
+
+    <h3 id="media-download">Download file</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /buckets/{bucket-slug}/media/{media-id}/download</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s -L "https://sentroy.com/api/storage/companies/{company-slug}/buckets/public/media/65f8a1.../download?quality=500" \
+  -H "Authorization: Bearer stk_..." \
+  -o photo-500.jpg</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> blob = <span class="ts-kw">await</span> sentroy.media.<span class="ts-fn">download</span>(
+  <span class="ts-str">"public"</span>,
+  <span class="ts-str">"65f8a1..."</span>,
+  { quality: <span class="ts-num">500</span> },
+)</code></pre>
+      </div>
+    </div>
+    <p>For private buckets this is the only way to fetch the bytes — the
+    public CDN URL refuses them. Pass <code>quality</code> to request a
+    pre-generated thumbnail variant; falls back to the original if that size
+    doesn't exist.</p>
+
+    <h3 id="media-delete">Delete file</h3>
+    <div class="endpoint"><span class="method method-delete">DELETE</span> /buckets/{bucket-slug}/media/{media-id}</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s -X DELETE https://sentroy.com/api/storage/companies/{company-slug}/buckets/public/media/65f8a1... \
+  -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">await</span> sentroy.media.<span class="ts-fn">delete</span>(<span class="ts-str">"public"</span>, <span class="ts-str">"65f8a1..."</span>)</code></pre>
+      </div>
+    </div>
+    <p>Cascades through the CDN: S3 objects (original + every thumbnail) are
+    removed before the Media record. If any S3 delete fails the record is
+    kept so you can retry without losing the reference.</p>
+
+    <h2 id="storage-usage">Storage usage</h2>
+    <p>Read-only quota and breakdown endpoints — no auth scope beyond a
+    valid access token. Useful for usage dashboards.</p>
+
+    <h3 id="storage-quota">Storage quota</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /storage-quota</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s https://sentroy.com/api/storage/companies/{company-slug}/storage-quota \
+  -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> quota = <span class="ts-kw">await</span> sentroy.storage.<span class="ts-fn">quota</span>()</code></pre>
+      </div>
+    </div>
+    <p><code>limit: 0</code> means the plan is unlimited. <code>used</code>
+    reflects every bucket's total; <code>mailUsed</code> is the mail
+    product's share of the same plan pool.</p>
+
+    <h3 id="storage-breakdown">Usage breakdown</h3>
+    <div class="endpoint"><span class="method method-get">GET</span> /usage</div>
+    <div class="code-tabs" data-tabs>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="curl">cURL</button>
+        <button class="tab-btn" data-tab="ts">TypeScript</button>
+      </div>
+      <div class="tab-panel active" data-panel="curl">
+<pre><code>curl -s https://sentroy.com/api/storage/companies/{company-slug}/usage \
+  -H "Authorization: Bearer stk_..."</code></pre>
+      </div>
+      <div class="tab-panel" data-panel="ts">
+<pre><code><span class="ts-kw">const</span> usage = <span class="ts-kw">await</span> sentroy.storage.<span class="ts-fn">usage</span>()
+<span class="ts-comment">// usage.quota, usage.buckets, usage.byType</span></code></pre>
+      </div>
+    </div>
+    <p>Single round-trip — quota + per-bucket counters + media-type
+    aggregation in one payload. Intended for dashboards.</p>
 
   </main>
 </div>

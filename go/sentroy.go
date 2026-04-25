@@ -46,6 +46,7 @@ type Client struct {
 	Send      *SendService
 	Buckets   *BucketsService
 	Media     *MediaService
+	Storage   *StorageService
 }
 
 // New creates a new Sentroy [Client] with the given configuration.
@@ -80,5 +81,6 @@ func New(config Config) *Client {
 		Send:      newSendService(mailHTTP),
 		Buckets:   newBucketsService(storageHTTP),
 		Media:     newMediaService(storageHTTP),
+		Storage:   newStorageService(storageHTTP),
 	}
 }

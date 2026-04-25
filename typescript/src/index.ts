@@ -6,6 +6,7 @@ import { Inbox } from "./resources/inbox"
 import { Send } from "./resources/send"
 import { Buckets } from "./resources/buckets"
 import { MediaResource } from "./resources/media"
+import { Storage } from "./resources/storage"
 import type { SentroyClientConfig } from "./types"
 
 export class Sentroy {
@@ -16,6 +17,7 @@ export class Sentroy {
   public readonly send: Send
   public readonly buckets: Buckets
   public readonly media: MediaResource
+  public readonly storage: Storage
 
   /**
    * Create a new Sentroy client.
@@ -64,6 +66,7 @@ export class Sentroy {
     this.send = new Send(mailHttp)
     this.buckets = new Buckets(storageHttp)
     this.media = new MediaResource(storageHttp)
+    this.storage = new Storage(storageHttp)
   }
 }
 
@@ -94,6 +97,10 @@ export type {
   MediaListParams,
   MediaListResult,
   UploadMediaParams,
+  StorageQuota,
+  StorageUsage,
+  StorageUsageBucket,
+  StorageUsageByType,
 } from "./types"
 
 export { SentroyError } from "./http"

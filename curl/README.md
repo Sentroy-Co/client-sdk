@@ -478,6 +478,71 @@ curl -s -X DELETE https://sentroy.com/api/storage/companies/{company-slug}/bucke
 
 ---
 
+## Storage usage
+
+Read-only quota and usage breakdown across all buckets. Bucket and media
+CRUD live under Buckets / Media above.
+
+### Storage quota
+
+```bash
+curl -s https://sentroy.com/api/storage/companies/{company-slug}/storage-quota \
+  -H "X-Access-Token: $SENTROY_TOKEN"
+```
+
+```json
+{
+  "data": {
+    "used": 5439210,
+    "limit": 10737418240,
+    "mailUsed": 1024000,
+    "planName": "Pro"
+  }
+}
+```
+
+`limit: 0` means the plan is unlimited. `used` reflects every bucket's
+total; `mailUsed` is the mail product's slice of the same plan pool.
+
+### Storage usage breakdown
+
+```bash
+curl -s https://sentroy.com/api/storage/companies/{company-slug}/usage \
+  -H "X-Access-Token: $SENTROY_TOKEN"
+```
+
+```json
+{
+  "data": {
+    "quota": {
+      "used": 5439210,
+      "limit": 10737418240,
+      "mailUsed": 1024000,
+      "planName": "Pro"
+    },
+    "buckets": [
+      {
+        "id": "65f8a1...",
+        "name": "Public assets",
+        "slug": "public",
+        "storageUsed": 4200000,
+        "fileCount": 28,
+        "isPublic": true
+      }
+    ],
+    "byType": [
+      { "type": "image", "count": 24, "bytes": 3800000 },
+      { "type": "document", "count": 4, "bytes": 1639210 }
+    ]
+  }
+}
+```
+
+Single round-trip intended for usage UIs — quota, per-bucket counters and
+media-type aggregation in one payload.
+
+---
+
 ## Error Handling
 
 All error responses follow the same format:

@@ -9,6 +9,7 @@ from sentroy.inbox import InboxResource
 from sentroy.mailboxes import MailboxesResource
 from sentroy.media import MediaResource
 from sentroy.send import SendResource
+from sentroy.storage import StorageResource
 from sentroy.templates import TemplatesResource
 from sentroy.types import (
     Attachment,
@@ -28,6 +29,10 @@ from sentroy.types import (
     MessageSummary,
     SendParams,
     SendResult,
+    StorageQuota,
+    StorageUsage,
+    StorageUsageBucket,
+    StorageUsageByType,
     Template,
 )
 
@@ -59,6 +64,7 @@ class Sentroy:
     send: SendResource
     buckets: BucketsResource
     media: MediaResource
+    storage: StorageResource
 
     def __init__(
         self,
@@ -87,6 +93,7 @@ class Sentroy:
         self.send = SendResource(mail_http)
         self.buckets = BucketsResource(storage_http)
         self.media = MediaResource(storage_http)
+        self.storage = StorageResource(storage_http)
 
 
 __all__ = [
@@ -109,5 +116,9 @@ __all__ = [
     "MessageSummary",
     "SendParams",
     "SendResult",
+    "StorageQuota",
+    "StorageUsage",
+    "StorageUsageBucket",
+    "StorageUsageByType",
     "Template",
 ]
