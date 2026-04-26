@@ -5,7 +5,7 @@
 <h3 align="center">Sentroy Client SDK for TypeScript</h3>
 
 <p align="center">
-  Server-side SDK to interact with the Sentroy platform API.<br />
+  TypeScript SDK to interact with the Sentroy platform API + opt-in React components.<br />
   Manage mail (domains, mailboxes, templates, inbox, send) and storage (buckets, media) from a single entry point.
 </p>
 
@@ -271,10 +271,147 @@ try {
 | `accessToken` | `string` | Yes | Access token (`stk_...`) |
 | `timeout` | `number` | No | Request timeout in ms (default: `30000`) |
 
+## React components (`@sentroy-co/client-sdk/react`)
+
+Optional subpath. Only loaded if you import it; React + react-dom are
+declared as **optional peer dependencies** so server-only consumers
+don't need to install them.
+
+```bash
+npm install react react-dom
+```
+
+### `MediaManager`
+
+Drop-in storage browser/uploader for end-user apps. Talks to the same
+Sentroy client you already use; renders Tailwind classes (host app's
+Tailwind setup is reused — the package ships no styles).
+
+```tsx
+"use client"
+
+import { Sentroy } from "@sentroy-co/client-sdk"
+import { MediaManager } from "@sentroy-co/client-sdk/react"
+
+const client = new Sentroy({
+  baseUrl: "https://sentroy.com",
+  companySlug: "my-company",
+  accessToken: "stk_...",
+})
+
+export default function Page() {
+  return (
+    <MediaManager
+      client={client}
+      multiple
+      accept="image/*"
+      onChange={(selected) => console.log(selected)}
+      onSelect={(selected) => console.log("confirmed:", selected)}
+    />
+  )
+}
+```
+
+#### Features
+
+- Bucket selector (auto-picks first if `bucketSlug` not provided)
+- Search (filename) + file-type filter (image / video / audio / pdf / doc / archive / code)
+- Upload via button **and** drag-and-drop
+- Single or multi selection (`multiple` prop)
+- `initialValue` accepts `Media[]` or `string[]` (id list) — pre-selected
+  on mount, fires `onChange` immediately so parent state stays in sync
+- Press `Space` while a card is selected → opens it in fullscreen
+  **Lightbox** (image / video / audio render natively, others get a
+  download fallback). `Esc` closes, `←/→` step through siblings
+- Detail pane on the right (large screens) — preview, metadata,
+  delete, "Use selection" CTA when `onSelect` provided
+
+#### Props
+
+| Prop                 | Type                                                  | Required | Description |
+|----------------------|-------------------------------------------------------|:-:|:--|
+| `client`             | `Sentroy`                                             | Yes | The configured client instance |
+| `bucketSlug`         | `string`                                              |  | Initial bucket; default = first one in the list |
+| `multiple`           | `boolean`                                             |  | Allow multi-selection. Default `false` |
+| `accept`             | `string`                                              |  | MIME pattern for upload, e.g. `"image/*"` |
+| `initialValue`       | `Array<Media \| string>`                              |  | Pre-selected items (objects or ids) |
+| `onChange`           | `(selected: Media[]) => void`                         |  | Fires on every selection change |
+| `onSelect`           | `(selected: Media[]) => void`                         |  | Fires on confirm — picker dialogs use this |
+| `bucketFilter`       | `(b: Bucket) => boolean`                              |  | Filter the bucket dropdown — hide system buckets |
+| `showDetailsPane`    | `boolean`                                             |  | Default `true` |
+| `showBucketSelector` | `boolean`                                             |  | Default `true` |
+| `className`          | `string`                                              |  | Root wrapper class |
+| `classNames`         | `MediaManagerClassNames`                              |  | Per-region class overrides (see theming) |
+
+#### Theming
+
+The component uses Tailwind utility classes that consume your design
+tokens (`bg-background`, `text-foreground`, `border-border`,
+`text-muted-foreground`, `bg-muted`, etc.). Drop-in usage in any
+shadcn-style codebase needs no extra setup.
+
+For finer control, override individual sections via `classNames`:
+
+```tsx
+<MediaManager
+  client={client}
+  className="h-[600px] rounded-2xl border-purple-200"
+  classNames={{
+    toolbar: "bg-purple-50",
+    uploadButton: "bg-purple-600 text-white",
+    cardSelected: "ring-purple-400 border-purple-400",
+    grid: "sm:grid-cols-2 md:grid-cols-3", // override grid density
+  }}
+/>
+```
+
+Available keys: `root`, `toolbar`, `searchInput`, `filterSelect`,
+`uploadButton`, `bucketSelect`, `grid`, `card`, `cardSelected`,
+`thumbnail`, `cardMeta`, `empty`, `details`, `dropZoneOverlay`.
+
+When you migrate to a different theme system later, change tokens in
+one place — every Tailwind utility resolves through your `globals.css`.
+
+#### `Lightbox` (standalone)
+
+Exported separately so you can use it outside `MediaManager` (e.g. in
+a feed view):
+
+```tsx
+import { Lightbox } from "@sentroy-co/client-sdk/react"
+
+const [active, setActive] = useState<Media | null>(null)
+
+return (
+  <>
+    {/* …trigger… */}
+    {active && (
+      <Lightbox media={active} onClose={() => setActive(null)} />
+    )}
+  </>
+)
+```
+
+Image / video / audio rendered inline; everything else gets a download
+button. `Esc` closes, optional `onPrev` / `onNext` add ←/→ navigation.
+
+#### Helpers
+
+```ts
+import {
+  cn,           // tiny class joiner
+  formatBytes,  // 1234 → "1.21 KB"
+  detectKind,   // image | video | audio | pdf | doc | archive | code | other
+  KIND_LABELS,
+  type MediaKind,
+} from "@sentroy-co/client-sdk/react"
+```
+
 ## Requirements
 
 - Node.js 18+ (uses native `fetch`)
-- Server-side only
+- React 18+ (only if you import from `/react`)
+- Tailwind CSS in the host app (only for React components)
 
 ## Raw Documentation
 
