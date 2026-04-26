@@ -12,8 +12,16 @@ export interface SentroyClientConfig {
   baseUrl: string
   /** Company slug */
   companySlug: string
-  /** Access token (stk_...). Same token works for mail + storage. */
-  accessToken: string
+  /**
+   * Access token (`stk_...`). Same token works for mail + storage.
+   *
+   * Optional: when omitted, the client uses **cookie auth**
+   * (`credentials: "include"` on every fetch) — useful for browser code
+   * running inside the Sentroy site itself, where the user's session
+   * cookie is already valid against `sentroy.com`. End users never have
+   * to paste an API key when the SDK is embedded in our own UI.
+   */
+  accessToken?: string
   /** Request timeout in milliseconds (default: 30000) */
   timeout?: number
 }

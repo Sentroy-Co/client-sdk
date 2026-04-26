@@ -13,10 +13,17 @@ export class SentroyError extends Error {
 
 export class HttpClient {
   private baseUrl: string
-  private token: string
+  /**
+   * Bearer access token. Tanımsızsa Authorization header eklenmez ve
+   * `credentials: "include"` ile cookie auth kullanılır — bu mod Sentroy
+   * site içinden (sentroy.com / mail.sentroy.com / storage.sentroy.com)
+   * MediaManager gibi React component'leri kullanırken caller'ın access
+   * token üretmesine gerek bırakmaz; mevcut session cookie'si yeter.
+   */
+  private token: string | undefined
   private timeout: number
 
-  constructor(baseUrl: string, token: string, timeout = 30_000) {
+  constructor(baseUrl: string, token: string | undefined, timeout = 30_000) {
     this.baseUrl = baseUrl.replace(/\/+$/, "")
     this.token = token
     this.timeout = timeout
@@ -34,9 +41,19 @@ export class HttpClient {
     return url.toString()
   }
 
+  private authHeaders(): Record<string, string> {
+    return this.token ? { Authorization: `Bearer ${this.token}` } : {}
+  }
+
+  /** Cookie modunda credentials include; bearer modunda omit. */
+  private get fetchCredentials(): RequestCredentials {
+    return this.token ? "omit" : "include"
+  }
+
   /**
    * Raw fetch — JSON parse etmez, Response döner. Binary endpoint'ler
-   * (media download) için kullanılır. Authorization header eklenir.
+   * (media download) için kullanılır. Authorization header eklenir veya
+   * cookie auth ile çalışılır.
    */
   async fetchRaw(
     path: string,
@@ -48,7 +65,8 @@ export class HttpClient {
     try {
       return await fetch(url, {
         method: init?.method || "GET",
-        headers: { Authorization: `Bearer ${this.token}` },
+        headers: this.authHeaders(),
+        credentials: this.fetchCredentials,
         signal: controller.signal,
       })
     } finally {
@@ -69,9 +87,7 @@ export class HttpClient {
     const timer = setTimeout(() => controller.abort(), this.timeout)
 
     try {
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${this.token}`,
-      }
+      const headers: Record<string, string> = { ...this.authHeaders() }
       if (options?.body) {
         headers["Content-Type"] = "application/json"
       }
@@ -80,6 +96,7 @@ export class HttpClient {
         method,
         headers,
         body: options?.body ? JSON.stringify(options.body) : undefined,
+        credentials: this.fetchCredentials,
         signal: controller.signal,
       })
 
@@ -131,7 +148,8 @@ export class HttpClient {
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { Authorization: `Bearer ${this.token}` },
+        headers: this.authHeaders(),
+        credentials: this.fetchCredentials,
         body: form,
         signal: controller.signal,
       })
