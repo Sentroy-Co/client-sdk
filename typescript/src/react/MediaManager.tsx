@@ -5,8 +5,8 @@ import {
   useRef,
   useState,
 } from "react"
-import type { Sentroy } from "@sentroy-co/client-sdk"
-import type { Bucket, Media } from "@sentroy-co/client-sdk"
+import type { Sentroy } from ".."
+import type { Bucket, Media } from "../types"
 import { Lightbox } from "./lib/Lightbox"
 import { useMediaList } from "./lib/use-media-list"
 import {

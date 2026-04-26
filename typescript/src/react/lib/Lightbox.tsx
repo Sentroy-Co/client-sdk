@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import type { Media } from "@sentroy-co/client-sdk"
+import type { Media } from "../../types"
 import { detectKind, formatBytes } from "./utils"
 
 /**

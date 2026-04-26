@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
-import type { Sentroy } from "@sentroy-co/client-sdk"
-import type { Media, MediaListResult } from "@sentroy-co/client-sdk"
+import type { Sentroy } from "../.."
+import type { Media, MediaListResult } from "../../types"
 
 /**
  * Bir bucket'taki media listesini çeken hook. Search, kind filter ve

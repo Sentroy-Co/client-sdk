@@ -1,11 +1,29 @@
 {
   "name": "@sentroy-co/client-sdk",
-  "version": "2.1.0",
-  "description": "Server-side TypeScript SDK for Sentroy platform API",
+  "version": "2.2.0",
+  "description": "TypeScript SDK for the Sentroy platform — REST resources + React components.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js",
+      "require": "./dist/react/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "require": "./dist/types.js"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "scripts": {
     "build": "tsc",
@@ -17,7 +35,9 @@
     "sdk",
     "api",
     "mail",
-    "typescript"
+    "typescript",
+    "react",
+    "media-manager"
   ],
   "repository": {
     "type": "git",
@@ -32,8 +52,24 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "typescript": "^5.5.4"
   }
 }
