@@ -230,6 +230,11 @@ export interface Media {
   caption?: string
   isPublic: boolean
   imageMeta?: MediaImageMeta
+  /** Public bucket'larda direct CDN URL — server response'undan gelir
+   *  (her zaman değil). Yoksa caller proxy/download endpoint'i kullanmalı. */
+  url?: string
+  /** Auth'lu download URL — short-lived signed link veya proxy. */
+  downloadUrl?: string
   createdAt: string
   updatedAt: string
 }
