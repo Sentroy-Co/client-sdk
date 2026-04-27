@@ -104,3 +104,11 @@ export type {
 } from "./types"
 
 export { SentroyError } from "./http"
+
+export {
+  pickThumbnailUrl,
+  pickPresetThumbnailUrl,
+  THUMBNAIL_PRESETS,
+  type ThumbnailPreset,
+  type ThumbnailSourceMedia,
+} from "./thumbnails"

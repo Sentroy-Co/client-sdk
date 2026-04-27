@@ -9,6 +9,7 @@ import type { Sentroy } from ".."
 import type { Bucket, Media } from "../types"
 import { Lightbox } from "./lib/Lightbox"
 import { useMediaList } from "./lib/use-media-list"
+import { pickPresetThumbnailUrl } from "../thumbnails"
 import {
   cn,
   detectKind,
@@ -435,8 +436,13 @@ export function MediaManager(props: MediaManagerProps) {
               {visibleItems.map((media) => {
                 const isSel = selectedIds.has(media.id)
                 const kind = detectKind(media)
+                // Grid card 200-300 px display — orijinal 4K JPG yerine
+                // "card" preset (~500px) thumbnail. Gerçek thumbnail yoksa
+                // helper orijinale fallback yapar.
                 const thumb =
-                  kind === "image" ? media.url || media.downloadUrl : null
+                  kind === "image"
+                    ? pickPresetThumbnailUrl(media, "card") ?? null
+                    : null
                 return (
                   <button
                     key={media.id}
@@ -540,10 +546,11 @@ export function MediaManager(props: MediaManagerProps) {
                 return (
                   <>
                     <div className="aspect-square overflow-hidden rounded-md bg-muted/30">
-                      {kind === "image" && (m.url || m.downloadUrl) ? (
+                      {kind === "image" &&
+                      pickPresetThumbnailUrl(m, "card") ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={m.url || m.downloadUrl || ""}
+                          src={pickPresetThumbnailUrl(m, "card") ?? ""}
                           alt={m.alt ?? m.fileName}
                           className="size-full object-cover"
                         />

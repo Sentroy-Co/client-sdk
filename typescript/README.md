@@ -247,6 +247,46 @@ const thumb = await sentroy.media.download("product-assets", mediaId, {
 await sentroy.media.delete("product-assets", mediaId)
 ```
 
+#### Thumbnail URL helpers
+
+When you upload an image, the CDN auto-generates several thumbnail
+sizes (`media.imageMeta.thumbnails`). Showing the original 4000-px JPG
+in a 56-px avatar wastes bandwidth and slows render. Use these helpers
+to pick the right URL for the display target:
+
+```ts
+import {
+  pickThumbnailUrl,
+  pickPresetThumbnailUrl,
+  THUMBNAIL_PRESETS,
+} from "@sentroy-co/client-sdk"
+
+// Manual target (px) — pass display size * 2 for retina
+const avatarUrl = pickThumbnailUrl(media, 56 * 2)
+
+// Semantic preset — avatar / card / preview / hero
+const cardUrl = pickPresetThumbnailUrl(media, "card") // → ~500px
+const previewUrl = pickPresetThumbnailUrl(media, "preview") // → ~960px
+```
+
+The helper picks the smallest thumbnail that still **covers** the
+target (so you never upscale), then falls back through:
+
+1. `thumbnail.url` if the backend exposed it directly,
+2. CDN-prefix + `thumbnail.fileName` derived from `media.url`,
+3. proxy `media.downloadUrl?quality=N` for private buckets,
+4. `media.url` / `media.downloadUrl` if no thumbnails exist
+   (non-image, or image upload before thumbnails were generated).
+
+Returns `undefined` only when the media has no public URL at all.
+
+| Preset      | Target px | Use case |
+|-------------|-----------|----------|
+| `avatar`    | 128       | Round chips, 28-64 px display @2x |
+| `card`      | 500       | Grid / list cards, 200-300 px |
+| `preview`   | 960       | Modal / detail view |
+| `hero`      | 1600      | Full-bleed hero, edge cases |
+
 ## Error Handling
 
 ```ts

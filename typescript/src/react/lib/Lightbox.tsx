@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import type { Media } from "../../types"
+import { pickPresetThumbnailUrl } from "../../thumbnails"
 import { detectKind, formatBytes } from "./utils"
 
 /**
@@ -40,7 +41,13 @@ export function Lightbox({
   }, [onClose, onPrev, onNext])
 
   const kind = detectKind(media)
-  const url = media.url || media.downloadUrl
+  // Lightbox modal — büyük preview ama 4K/orijinal gerekmez. Image
+  // için "preview" preset (~960px) kullan, video/audio/diğerlerinde
+  // orijinal URL'i akıt.
+  const url =
+    kind === "image"
+      ? pickPresetThumbnailUrl(media, "preview") ?? media.url ?? media.downloadUrl
+      : media.url ?? media.downloadUrl
 
   return (
     <div
