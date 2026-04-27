@@ -179,7 +179,14 @@ export function MediaManagerTrigger(props: MediaManagerTriggerProps) {
         />
         <div
           className={cn(
-            "relative z-10 flex h-[85vh] w-full max-w-5xl flex-col gap-3 rounded-xl border bg-background p-4 shadow-2xl",
+            // Default boyutlar mütevazı — single-image avatar/cover picker
+            // için idealdir. Geniş kullanım için consumer `modalClassName`
+            // ile `max-w-5xl` veya `max-w-7xl` set edebilir.
+            //
+            // `h-[min(80vh,640px)]` küçük ekranda viewport oranlı,
+            // 4K/ultrawide ekranda 640px hard cap — modal tüm ekranı
+            // kaplamaz, dialog hissi korunur.
+            "relative z-10 flex h-[min(80vh,640px)] w-full max-w-3xl flex-col gap-3 rounded-xl border bg-background p-4 shadow-2xl",
             modalClassName,
           )}
         >

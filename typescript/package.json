@@ -1,6 +1,6 @@
 {
   "name": "@sentroy-co/client-sdk",
-  "version": "2.4.2",
+  "version": "2.4.4",
   "description": "TypeScript SDK for the Sentroy platform — REST resources + React components.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
