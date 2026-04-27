@@ -71,3 +71,37 @@ export const KIND_LABELS: Record<MediaKind, string> = {
   code: "Code",
   other: "Other",
 }
+
+/**
+ * `<input accept="...">` semantics — pattern listesi virgülle ayrılır,
+ * her parça:
+ *  - `image/*` → MIME wildcard (image/png, image/jpeg ✓)
+ *  - `image/png` → MIME exact match
+ *  - `.png` → file extension (case-insensitive)
+ *
+ * Hiçbir parça eşleşmezse false. Accept boş/undefined olursa caller
+ * filter'ı atlamalı — bu fonksiyon o yüzden boş string'i false döner.
+ */
+export function matchAccept(
+  file: { mimeType?: string | null; fileName?: string },
+  accept: string,
+): boolean {
+  const patterns = accept
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+  if (patterns.length === 0) return false
+  const mt = (file.mimeType ?? "").toLowerCase()
+  const fn = (file.fileName ?? "").toLowerCase()
+  for (const p of patterns) {
+    if (p.startsWith(".")) {
+      if (fn.endsWith(p)) return true
+    } else if (p.endsWith("/*")) {
+      const prefix = p.slice(0, -1) // "image/*" → "image/"
+      if (mt.startsWith(prefix)) return true
+    } else if (p === mt) {
+      return true
+    }
+  }
+  return false
+}

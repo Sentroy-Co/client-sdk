@@ -333,7 +333,8 @@ export default function Page() {
 | `client`             | `Sentroy`                                             | Yes | The configured client instance |
 | `bucketSlug`         | `string`                                              |  | Initial bucket; default = first one in the list |
 | `multiple`           | `boolean`                                             |  | Allow multi-selection. Default `false` |
-| `accept`             | `string`                                              |  | MIME pattern for upload, e.g. `"image/*"` |
+| `maxItems`           | `number`                                              |  | Cap for multi-mode. New selections are silently blocked once reached. Ignored when `multiple=false` |
+| `accept`             | `string`                                              |  | File type filter — applies to upload **and** the grid. Same syntax as `<input accept>`: `"image/*"`, `"image/png,image/jpeg"`, `".pdf,.docx"`, comma-separated combos |
 | `initialValue`       | `Array<Media \| string>`                              |  | Pre-selected items (objects or ids) |
 | `onChange`           | `(selected: Media[]) => void`                         |  | Fires on every selection change |
 | `onSelect`           | `(selected: Media[]) => void`                         |  | Fires on confirm — picker dialogs use this |
@@ -372,6 +373,120 @@ Available keys: `root`, `toolbar`, `searchInput`, `filterSelect`,
 When you migrate to a different theme system later, change tokens in
 one place — every Tailwind utility resolves through your `globals.css`.
 
+### `MediaManagerTrigger`
+
+A wrapper that turns **any** clickable element into a media picker — when
+the user clicks the `trigger`, a portal-rendered modal opens with
+`MediaManager` inside, and `onSelect` fires with the confirmed selection.
+
+The use case: you don't want a giant manager taking up real estate on your
+profile/settings page — you just want a "Change avatar" button (or even
+a clickable avatar thumbnail) that pops the picker on demand.
+
+```tsx
+"use client"
+
+import { Sentroy } from "@sentroy-co/client-sdk"
+import { MediaManagerTrigger } from "@sentroy-co/client-sdk/react"
+
+const client = new Sentroy({
+  baseUrl: "https://sentroy.com",
+  companySlug: "my-company",
+  accessToken: "stk_...",
+})
+
+export function AvatarPicker({
+  current,
+  onChange,
+}: {
+  current: string | null
+  onChange: (url: string) => void
+}) {
+  return (
+    <MediaManagerTrigger
+      client={client}
+      maxItems={1}
+      accept="image/*"
+      title="Choose your avatar"
+      description="Pick an existing image or upload a new one."
+      trigger={
+        <button className="rounded-full ring-2 ring-border hover:ring-primary">
+          {current ? (
+            <img src={current} alt="" className="size-10 rounded-full" />
+          ) : (
+            <span className="grid size-10 place-items-center rounded-full bg-muted text-xs">
+              ?
+            </span>
+          )}
+        </button>
+      }
+      onSelect={(media) => {
+        if (media[0]?.url) onChange(media[0].url)
+      }}
+    />
+  )
+}
+```
+
+#### Multi-select with cap
+
+```tsx
+<MediaManagerTrigger
+  client={client}
+  maxItems={5}
+  accept="image/*,video/*"
+  trigger={<Button>Add gallery items</Button>}
+  onSelect={(media) => setGallery(media)}
+/>
+```
+
+`maxItems > 1` automatically enables multi-mode. Once the user reaches
+the cap, additional clicks on unselected cards are silently no-op'd —
+they have to deselect something to swap.
+
+#### Controlled mode
+
+If you want the parent to drive open/close (e.g. opening from a context
+menu), pass `open` + `onOpenChange`. The `trigger` is still rendered so
+its click also opens the modal — to render only the modal, pass an empty
+fragment for `trigger`.
+
+```tsx
+const [open, setOpen] = useState(false)
+
+<MediaManagerTrigger
+  client={client}
+  open={open}
+  onOpenChange={setOpen}
+  trigger={<></>}
+  onSelect={(media) => { /* … */ }}
+/>
+```
+
+#### Props
+
+| Prop               | Type                              | Required | Description |
+|--------------------|-----------------------------------|:-:|:--|
+| `client`           | `Sentroy`                         | Yes | Same client you pass to `MediaManager` |
+| `trigger`          | `ReactNode`                       | Yes | The clickable element. Wrapped in `<span role="button">` with click + keyboard (Enter / Space) handlers |
+| `onSelect`         | `(selected: Media[]) => void`     | Yes | Fires when user confirms; modal auto-closes |
+| `maxItems`         | `number`                          |  | `1` = single (default), `>1` = multi up to cap |
+| `accept`           | `string`                          |  | Same `<input accept>` syntax — applies to upload **and** grid filter |
+| `title`            | `string`                          |  | Modal heading. Default `"Select media"` |
+| `description`      | `string`                          |  | Subheading under the title |
+| `open`             | `boolean`                         |  | Controlled open state |
+| `onOpenChange`     | `(open: boolean) => void`         |  | Controlled change handler |
+| `disabled`         | `boolean`                         |  | Trigger ignores clicks; visual disabled state |
+| `confirmLabel`     | `string`                          |  | Default `"Use selection"` |
+| `cancelLabel`      | `string`                          |  | Default `"Cancel"` |
+| `modalClassName`   | `string`                          |  | Class on the modal panel |
+| `triggerClassName` | `string`                          |  | Class on the trigger wrapper span |
+| …                  | rest of `MediaManagerProps`       |  | `bucketSlug`, `bucketFilter`, `showDetailsPane`, `classNames`, etc. forwarded to the inner `MediaManager` |
+
+The modal renders into `document.body` via `react-dom` portal, so it
+escapes parent `overflow:hidden` / transform stacking contexts. `Esc`
+closes; backdrop click closes; body scroll is locked while open.
+
 #### `Lightbox` (standalone)
 
 Exported separately so you can use it outside `MediaManager` (e.g. in
@@ -402,6 +517,7 @@ import {
   cn,           // tiny class joiner
   formatBytes,  // 1234 → "1.21 KB"
   detectKind,   // image | video | audio | pdf | doc | archive | code | other
+  matchAccept,  // matchAccept(file, "image/*,.pdf") → boolean
   KIND_LABELS,
   type MediaKind,
 } from "@sentroy-co/client-sdk/react"

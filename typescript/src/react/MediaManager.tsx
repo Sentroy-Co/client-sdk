@@ -14,6 +14,7 @@ import {
   detectKind,
   formatBytes,
   KIND_LABELS,
+  matchAccept,
   type MediaKind,
 } from "./lib/utils"
 
@@ -64,7 +65,19 @@ export interface MediaManagerProps {
   bucketSlug?: string
   /** Birden fazla seçilebilir mi? Default false. */
   multiple?: boolean
-  /** Yalnızca belirli MIME prefix'leri kabul et upload'ta — örn "image/*". */
+  /**
+   * Multi-mode'da cap. multiple=true iken cap'e ulaşılınca yeni seçim
+   * sessizce engellenir. multiple=false iken yok sayılır (single = 1).
+   * Default: undefined (cap yok).
+   */
+  maxItems?: number
+  /**
+   * Upload + grid filter için MIME pattern — örn `"image/*"`,
+   * `"image/png,image/jpeg"`, `"video/*,application/pdf"`.
+   * - Upload `<input type="file">` `accept` özniteliğine geçer.
+   * - Grid'de `accept` ile uyumlu olmayan item'lar gizlenir
+   *   (kullanıcı yine de bucket'ında görebilir ama picker'da seçemez).
+   */
   accept?: string
   /** Kullanıcının önceden seçtiği item'lar — Media obje ya da id string. */
   initialValue?: Array<Media | string>
@@ -102,6 +115,7 @@ export function MediaManager(props: MediaManagerProps) {
     client,
     bucketSlug: initialBucketSlug,
     multiple = false,
+    maxItems,
     accept,
     initialValue,
     onChange,
@@ -171,8 +185,16 @@ export function MediaManager(props: MediaManagerProps) {
       setSelectedIds((prev) => {
         const next = new Set(prev)
         if (multiple) {
-          if (next.has(media.id)) next.delete(media.id)
-          else next.add(media.id)
+          if (next.has(media.id)) {
+            next.delete(media.id)
+          } else {
+            // maxItems cap — multi-mode'da limite ulaşıldıysa yeni
+            // seçimi engelle (mevcut state'i değiştirmeden döndür).
+            if (typeof maxItems === "number" && next.size >= maxItems) {
+              return prev
+            }
+            next.add(media.id)
+          }
         } else {
           // Single: aynısı tıklanırsa deselect
           if (next.has(media.id) && next.size === 1) next.clear()
@@ -184,7 +206,7 @@ export function MediaManager(props: MediaManagerProps) {
         return next
       })
     },
-    [multiple],
+    [multiple, maxItems],
   )
 
   const selected = useMemo(
@@ -207,9 +229,10 @@ export function MediaManager(props: MediaManagerProps) {
     return items.filter((m) => {
       if (q && !m.fileName.toLowerCase().includes(q)) return false
       if (kindFilter !== "all" && detectKind(m) !== kindFilter) return false
+      if (accept && !matchAccept(m, accept)) return false
       return true
     })
-  }, [items, search, kindFilter])
+  }, [items, search, kindFilter, accept])
 
   // ── Upload ─────────────────────────────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement | null>(null)
