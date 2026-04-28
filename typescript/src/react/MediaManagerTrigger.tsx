@@ -186,9 +186,13 @@ export function MediaManagerTrigger(props: MediaManagerTriggerProps) {
             // `h-[min(80vh,640px)]` küçük ekranda viewport oranlı,
             // 4K/ultrawide ekranda 640px hard cap — modal tüm ekranı
             // kaplamaz, dialog hissi korunur.
-            "relative z-10 flex h-[min(80vh,640px)] w-full max-w-3xl flex-col gap-3 rounded-xl border bg-background p-4 shadow-2xl",
+            "relative z-10 flex h-[min(85vh,640px)] w-full max-w-[60vw] flex-col gap-3 rounded-xl border bg-background p-4 shadow-2xl",
             modalClassName,
           )}
+          style={{
+            maxWidth: "60vw",
+            minHeight: "85vh",
+          }}
         >
           <div className="flex items-start justify-between gap-2">
             <div className="flex flex-col gap-0.5">
