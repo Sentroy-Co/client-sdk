@@ -52,6 +52,14 @@ export class MediaResource {
   async upload(
     bucketSlug: string,
     params: UploadMediaParams,
+    opts?: {
+      /** Bytes loaded / total — XHR `upload.onprogress` event'inden gelir.
+       *  Verilmesse fetch tabanlı path kullanılır (progress yok). */
+      onProgress?: (loaded: number, total: number) => void
+      /** AbortController.signal — kullanıcı iptal ettiğinde XHR cancel
+       *  edilir, promise reject. */
+      signal?: AbortSignal
+    },
   ): Promise<Media> {
     const form = new FormData()
     const filename =
@@ -67,10 +75,11 @@ export class MediaResource {
     if (params.caption) form.append("caption", params.caption)
     if (params.tags?.length) form.append("tags", params.tags.join(","))
 
-    return this.http.postForm<Media>(
-      `/buckets/${encodeURIComponent(bucketSlug)}/media`,
-      form,
-    )
+    const path = `/buckets/${encodeURIComponent(bucketSlug)}/media`
+    if (opts?.onProgress || opts?.signal) {
+      return this.http.postFormWithProgress<Media>(path, form, opts)
+    }
+    return this.http.postForm<Media>(path, form)
   }
 
   /**

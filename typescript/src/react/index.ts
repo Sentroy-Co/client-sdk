@@ -9,6 +9,16 @@ export {
 } from "./MediaManagerTrigger"
 export { Lightbox, type LightboxProps } from "./lib/Lightbox"
 export {
+  useUploadQueue,
+  type UploadEntry,
+  type UseUploadQueueOptions,
+  type UseUploadQueueResult,
+} from "./lib/use-upload-queue"
+export {
+  UploadQueuePanel,
+  type UploadQueuePanelProps,
+} from "./lib/UploadQueuePanel"
+export {
   cn,
   formatBytes,
   detectKind,

@@ -166,4 +166,89 @@ export class HttpClient {
       clearTimeout(timer)
     }
   }
+
+  /**
+   * XHR-tabanlı multipart upload — `fetch` progress event veremiyor, XHR
+   * `upload.onprogress` ile bytes loaded/total event'i tetikler. Caller
+   * `onProgress` ve `signal` (AbortController) verir.
+   *
+   * Cookie auth (`token` undefined) için `withCredentials = true`. Timeout
+   * uygulanmaz (büyük dosyalar için 30sn'de patlayıp kaybolmasın); caller
+   * istiyorsa `signal` ile kendi timeout'unu kurar.
+   */
+  async postFormWithProgress<T>(
+    path: string,
+    form: FormData,
+    opts: {
+      onProgress?: (loaded: number, total: number) => void
+      signal?: AbortSignal
+    } = {},
+  ): Promise<T> {
+    const url = this.buildUrl(path)
+    return new Promise<T>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open("POST", url, true)
+      if (this.token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${this.token}`)
+      } else {
+        xhr.withCredentials = true
+      }
+
+      if (opts.signal) {
+        if (opts.signal.aborted) {
+          reject(new SentroyError(0, null, "Upload aborted"))
+          return
+        }
+        opts.signal.addEventListener(
+          "abort",
+          () => {
+            try {
+              xhr.abort()
+            } catch {
+              /* noop */
+            }
+            reject(new SentroyError(0, null, "Upload aborted"))
+          },
+          { once: true },
+        )
+      }
+
+      if (opts.onProgress) {
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            opts.onProgress!(e.loaded, e.total)
+          }
+        })
+      }
+
+      xhr.addEventListener("load", () => {
+        let json: { data?: T; error?: string } = {}
+        try {
+          json = JSON.parse(xhr.responseText) as { data?: T; error?: string }
+        } catch {
+          /* fall through with empty object */
+        }
+        if (xhr.status >= 200 && xhr.status < 300 && json.data !== undefined) {
+          resolve(json.data)
+        } else {
+          reject(
+            new SentroyError(
+              xhr.status,
+              json,
+              json.error || `Upload failed with status ${xhr.status}`,
+            ),
+          )
+        }
+      })
+
+      xhr.addEventListener("error", () =>
+        reject(new SentroyError(0, null, "Upload network error")),
+      )
+      xhr.addEventListener("timeout", () =>
+        reject(new SentroyError(0, null, "Upload timed out")),
+      )
+
+      xhr.send(form)
+    })
+  }
 }

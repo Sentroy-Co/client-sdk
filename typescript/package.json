@@ -1,6 +1,6 @@
 {
   "name": "@sentroy-co/client-sdk",
-  "version": "2.4.5",
+  "version": "2.5.0",
   "description": "TypeScript SDK for the Sentroy platform — REST resources + React components.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,6 +19,11 @@
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js",
       "require": "./dist/types.js"
+    },
+    "./react/crop": {
+      "types": "./dist/react/crop/index.d.ts",
+      "import": "./dist/react/crop/index.js",
+      "require": "./dist/react/crop/index.js"
     }
   },
   "files": [
@@ -71,5 +76,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "motion": "^12.38.0",
+    "react-easy-crop": "^5.5.7"
   }
 }

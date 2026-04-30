@@ -9,6 +9,8 @@ import type { Sentroy } from ".."
 import type { Bucket, Media } from "../types"
 import { Lightbox } from "./lib/Lightbox"
 import { useMediaList } from "./lib/use-media-list"
+import { useUploadQueue } from "./lib/use-upload-queue"
+import { UploadQueuePanel } from "./lib/UploadQueuePanel"
 import { pickPresetThumbnailUrl } from "../thumbnails"
 import {
   cn,
@@ -97,6 +99,20 @@ export interface MediaManagerProps {
   showDetailsPane?: boolean
   /** Toolbar'da bucket selector görünsün mü (default true). */
   showBucketSelector?: boolean
+  /**
+   * Yükleme öncesi her dosya için çağrılan async hook. Caller dosyayı
+   * dönüştürebilir (örn. image crop), `null` döndürerek skip edebilir.
+   * Verilmezse dosyalar olduğu gibi yüklenir.
+   *
+   * @example Image crop
+   * ```ts
+   * preprocessFile={async (file) => {
+   *   if (!file.type.startsWith("image/")) return file
+   *   return await openCropDialog(file) // ya orijinal File ya cropped File
+   * }}
+   * ```
+   */
+  preprocessFile?: (file: File) => Promise<File | null>
 }
 
 const KIND_FILTERS: Array<{ value: MediaKind | "all"; label: string }> = [
@@ -126,6 +142,7 @@ export function MediaManager(props: MediaManagerProps) {
     classNames: cls = {},
     showDetailsPane = true,
     showBucketSelector = true,
+    preprocessFile,
   } = props
 
   // ── Bucket state ───────────────────────────────────────────────────────
@@ -237,24 +254,29 @@ export function MediaManager(props: MediaManagerProps) {
 
   // ── Upload ─────────────────────────────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+
+  // Queue: per-file progress + abort + concurrency-pooled. Pre-upload hook
+  // (`preprocessFile`) image crop gibi caller-side transform yapabilir;
+  // null dönerse dosya skip, File dönerse o swap'lenir.
+  const queue = useUploadQueue(client, {
+    concurrency: 3,
+    onUploaded: () => setRefreshKey((k) => k + 1),
+  })
+  const uploading = queue.activeCount > 0
 
   const uploadFiles = useCallback(
     async (files: FileList | File[]) => {
       if (!activeBucketSlug) return
-      setUploading(true)
-      try {
-        const list = Array.from(files)
-        for (const file of list) {
-          await client.media.upload(activeBucketSlug, { body: file })
-        }
-        setRefreshKey((k) => k + 1)
-      } finally {
-        setUploading(false)
+      const incoming = Array.from(files)
+      const processed: File[] = []
+      for (const file of incoming) {
+        const out = preprocessFile ? await preprocessFile(file) : file
+        if (out) processed.push(out)
       }
+      if (processed.length > 0) queue.enqueue(activeBucketSlug, processed)
     },
-    [client, activeBucketSlug],
+    [activeBucketSlug, queue, preprocessFile],
   )
 
   // ── Delete ─────────────────────────────────────────────────────────────
@@ -637,6 +659,14 @@ export function MediaManager(props: MediaManagerProps) {
           )}
         />
       )}
+
+      {/* Upload queue panel — entries varsa görünür, alttan slide-in */}
+      <UploadQueuePanel
+        entries={queue.entries}
+        onCancel={queue.cancel}
+        onRemove={queue.remove}
+        onClearDone={queue.clearDone}
+      />
 
       {/* Lightbox */}
       {lightboxIdx !== null && visibleItems[lightboxIdx] && (
