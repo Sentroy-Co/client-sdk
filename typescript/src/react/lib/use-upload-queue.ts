@@ -66,6 +66,22 @@ export function useUploadQueue(
   // Worker pump — queued entry varsa ve aktif < concurrency ise başlat.
   const pumpRef = useRef<() => void>(() => {})
 
+  /**
+   * Aktif (in-flight) upload sayısını synchronous olarak takip eden ref.
+   * `entries` state setEntries ile async güncellendiğinden, recursive
+   * `pump` çağrılarında `entries.filter(e => e.status === "uploading")`
+   * eski listeyi görür → aynı queued entry birden çok kez başlatılır
+   * (Chrome side `ERR_INSUFFICIENT_RESOURCES`). Ref ile incre/decre
+   * synchronous; concurrency limiti gerçekten devreye girer.
+   */
+  const inFlightRef = useRef(0)
+  /**
+   * Henüz başlatılmamış queued entry id'lerinin sıralı listesi. setEntries
+   * async olduğu için listeden seçim yapmak yarış koşulu üretir; ref
+   * üzerinden FIFO push/shift hem deterministik hem hızlı.
+   */
+  const queueRef = useRef<string[]>([])
+
   const updateEntry = useCallback(
     (id: string, patch: Partial<UploadEntry>) => {
       setEntries((prev) =>
@@ -76,65 +92,77 @@ export function useUploadQueue(
   )
 
   pumpRef.current = () => {
-    const list = entriesRef.current
-    const active = list.filter((e) => e.status === "uploading").length
-    if (active >= concurrency) return
-    const next = list.find((e) => e.status === "queued")
-    if (!next) return
+    // Slot doluysa veya queue boşsa erken dön.
+    if (inFlightRef.current >= concurrency) return
+    const nextId = queueRef.current.shift()
+    if (!nextId) return
+
+    // Slot'u synchronously rezerve et — bir sonraki pump çağrısı bu
+    // entry'i tekrar shift edemez.
+    inFlightRef.current++
+
+    const entry = entriesRef.current.find((e) => e.id === nextId)
+    if (!entry) {
+      // Cancel öncesi remove edilmiş; slot'u iade et ve pump'a devam.
+      inFlightRef.current--
+      pumpRef.current?.()
+      return
+    }
 
     // Mark uploading
-    updateEntry(next.id, { status: "uploading" })
+    updateEntry(entry.id, { status: "uploading" })
 
-    // Bucket slug entry içine save edilemiyor (entry shape'i bilmesi
-    // gerekmez); enqueue closure'unda capture edilir, ayrı bucket map.
-    const bucketSlug = bucketMapRef.current[next.id]
+    const bucketSlug = bucketMapRef.current[entry.id]
     if (!bucketSlug) {
-      updateEntry(next.id, { status: "error", error: "No bucket" })
+      updateEntry(entry.id, { status: "error", error: "No bucket" })
+      inFlightRef.current--
       pumpRef.current?.()
       return
     }
 
     const controller = new AbortController()
-    cancelMapRef.current[next.id] = () => controller.abort()
+    cancelMapRef.current[entry.id] = () => controller.abort()
 
     client.media
       .upload(
         bucketSlug,
-        { body: next.file, filename: next.file.name },
+        { body: entry.file, filename: entry.file.name },
         {
           onProgress: (loaded, total) => {
-            updateEntry(next.id, { loaded, total })
+            updateEntry(entry.id, { loaded, total })
           },
           signal: controller.signal,
         },
       )
       .then((media) => {
-        updateEntry(next.id, {
+        updateEntry(entry.id, {
           status: "done",
           media,
-          loaded: next.file.size,
-          total: next.file.size,
+          loaded: entry.file.size,
+          total: entry.file.size,
         })
         onUploadedRef.current?.(media)
       })
       .catch((err: unknown) => {
         const aborted =
           (err as { message?: string })?.message === "Upload aborted"
-        updateEntry(next.id, {
+        updateEntry(entry.id, {
           status: aborted ? "canceled" : "error",
           error: aborted
             ? undefined
-            : (err as Error)?.message ?? "Upload failed",
+            : ((err as Error)?.message ?? "Upload failed"),
         })
       })
       .finally(() => {
-        delete cancelMapRef.current[next.id]
-        // Yeni slot açıldı; başka queued varsa al.
+        delete cancelMapRef.current[entry.id]
+        inFlightRef.current--
+        // Slot açıldı, sıradakini başlat.
         pumpRef.current?.()
       })
 
-    // Aynı tick'te birden fazla slot doldur.
-    if (active + 1 < concurrency) pumpRef.current?.()
+    // Aynı tick'te kalan slot'ları doldur — concurrency artık
+    // synchronously inFlightRef ile guard'lı, çift başlatma yok.
+    if (inFlightRef.current < concurrency) pumpRef.current?.()
   }
 
   const bucketMapRef = useRef<Record<string, string>>({})
@@ -146,6 +174,9 @@ export function useUploadQueue(
       const newEntries: UploadEntry[] = files.map((file) => {
         const id = `up-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
         bucketMapRef.current[id] = bucketSlug
+        // FIFO queue — pump bu sıradan shift eder; setEntries async
+        // güncellemesinden bağımsız synchronous source-of-truth.
+        queueRef.current.push(id)
         return {
           id,
           file,
@@ -155,7 +186,8 @@ export function useUploadQueue(
           cancel: () => {
             const c = cancelMapRef.current[id]
             if (c) c()
-            else
+            else {
+              queueRef.current = queueRef.current.filter((qid) => qid !== id)
               setEntries((prev) =>
                 prev.map((e) =>
                   e.id === id && e.status === "queued"
@@ -163,11 +195,15 @@ export function useUploadQueue(
                     : e,
                 ),
               )
+            }
           },
         }
       })
       setEntries((prev) => [...prev, ...newEntries])
-      // pump on next tick — state update'ten sonra entriesRef güncel olsun
+      // pump on next tick — state update'ten sonra entriesRef güncel olsun.
+      // pumpRef kendi içinde sequential pump zincirini sürdürür (her
+      // başarılı slot rezervasyonundan sonra bir dahaki pump'ı çağırır),
+      // dolayısıyla burada tek tetikleme yeterli.
       Promise.resolve().then(() => pumpRef.current?.())
     },
     [],
@@ -176,7 +212,8 @@ export function useUploadQueue(
   const cancel = useCallback((id: string) => {
     const c = cancelMapRef.current[id]
     if (c) c()
-    else
+    else {
+      queueRef.current = queueRef.current.filter((qid) => qid !== id)
       setEntries((prev) =>
         prev.map((e) =>
           e.id === id && e.status === "queued"
@@ -184,10 +221,12 @@ export function useUploadQueue(
             : e,
         ),
       )
+    }
   }, [])
 
   const remove = useCallback((id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id))
+    queueRef.current = queueRef.current.filter((qid) => qid !== id)
     delete bucketMapRef.current[id]
     delete cancelMapRef.current[id]
   }, [])
