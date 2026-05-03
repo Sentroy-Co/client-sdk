@@ -444,6 +444,61 @@ export interface UpdateWebhookParams {
   active?: boolean
 }
 
+// ── Webhook deliveries ────────────────────────────────────────────────────
+
+export type WebhookDeliveryStatus = "success" | "failed" | "pending"
+
+export type WebhookDeliveryKind = "test" | "replay"
+
+export interface WebhookDelivery {
+  id: string
+  webhookId: string
+  companyId: string
+  kind: WebhookDeliveryKind
+  event: string
+  payload: Record<string, unknown>
+  /** URL the dispatcher actually POSTed to (frozen at dispatch time). */
+  url: string
+  /** HTTP status returned by the receiver — 0 if the request never landed. */
+  responseStatus: number
+  /** Truncated response body (max 4 KB). */
+  responseBody: string
+  durationMs: number
+  status: WebhookDeliveryStatus
+  error?: string
+  /** Set when this row is a replay of an earlier delivery. */
+  replayOf?: string
+  /** User id, email, or "system" for token/internal callers. */
+  triggeredBy: string
+  createdAt: string
+}
+
+export interface WebhookDeliveryListParams {
+  page?: number
+  limit?: number
+  status?: WebhookDeliveryStatus
+}
+
+export interface WebhookDeliveryListResult {
+  items: WebhookDelivery[]
+  total: number
+  page: number
+  limit: number
+}
+
+export interface WebhookTestParams {
+  event: WebhookEvent | string
+  payload: Record<string, unknown>
+}
+
+export interface WebhookDispatchResult {
+  deliveryId: string
+  responseStatus: number
+  durationMs: number
+  status: "success" | "failed"
+  error?: string
+}
+
 // ── Logs ──────────────────────────────────────────────────────────────────
 
 export type MailLogStatus =
