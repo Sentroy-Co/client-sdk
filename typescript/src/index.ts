@@ -4,6 +4,10 @@ import { Mailboxes } from "./resources/mailboxes"
 import { Templates } from "./resources/templates"
 import { Inbox } from "./resources/inbox"
 import { Send } from "./resources/send"
+import { Audience } from "./resources/audience"
+import { Suppressions } from "./resources/suppressions"
+import { Webhooks } from "./resources/webhooks"
+import { Logs } from "./resources/logs"
 import { Buckets } from "./resources/buckets"
 import { MediaResource } from "./resources/media"
 import { Storage } from "./resources/storage"
@@ -15,6 +19,10 @@ export class Sentroy {
   public readonly templates: Templates
   public readonly inbox: Inbox
   public readonly send: Send
+  public readonly audience: Audience
+  public readonly suppressions: Suppressions
+  public readonly webhooks: Webhooks
+  public readonly logs: Logs
   public readonly buckets: Buckets
   public readonly media: MediaResource
   public readonly storage: Storage
@@ -64,6 +72,10 @@ export class Sentroy {
     this.templates = new Templates(mailHttp)
     this.inbox = new Inbox(mailHttp)
     this.send = new Send(mailHttp)
+    this.audience = new Audience(mailHttp)
+    this.suppressions = new Suppressions(mailHttp)
+    this.webhooks = new Webhooks(mailHttp)
+    this.logs = new Logs(mailHttp)
     this.buckets = new Buckets(storageHttp)
     this.media = new MediaResource(storageHttp)
     this.storage = new Storage(storageHttp)
@@ -101,6 +113,24 @@ export type {
   StorageUsage,
   StorageUsageBucket,
   StorageUsageByType,
+  Contact,
+  ContactStatus,
+  ContactList,
+  CreateContactParams,
+  UpdateContactParams,
+  ContactListParams,
+  ContactListResult,
+  CreateAudienceListParams,
+  Suppression,
+  AddSuppressionParams,
+  SuppressionListParams,
+  Webhook,
+  WebhookEvent,
+  CreateWebhookParams,
+  UpdateWebhookParams,
+  MailLog,
+  MailLogStatus,
+  LogListParams,
 } from "./types"
 
 export { SentroyError } from "./http"

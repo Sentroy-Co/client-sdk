@@ -137,6 +137,17 @@ export class HttpClient {
   }
 
   /**
+   * DELETE with a JSON body. Most endpoints take an id in the path, but a
+   * few collection-membership endpoints (audience list members) carry the
+   * member id in the body so a single route can address both members of
+   * the parent. Fetch + undici both allow DELETE bodies — keep separate
+   * from `del` so the common case stays query-only.
+   */
+  async delWithBody<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>("DELETE", path, { body })
+  }
+
+  /**
    * Multipart upload. Body is a FormData; we deliberately do not set
    * Content-Type so the runtime (browser or Node undici) writes the
    * correct `multipart/form-data; boundary=...` header.

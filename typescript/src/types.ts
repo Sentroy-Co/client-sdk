@@ -322,3 +322,164 @@ export interface StorageUsage {
   buckets: StorageUsageBucket[]
   byType: StorageUsageByType[]
 }
+
+// ── Audience / Contacts ───────────────────────────────────────────────────
+
+export type ContactStatus = "active" | "unsubscribed" | "bounced"
+
+export interface Contact {
+  id: string
+  companyId: string
+  email: string
+  name?: string
+  tags: string[]
+  status: ContactStatus
+  metadata: Record<string, unknown>
+  lastEmailedAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ContactList {
+  id: string
+  companyId: string
+  name: string
+  description?: string
+  memberCount?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateContactParams {
+  email: string
+  name?: string
+  tags?: string[]
+  metadata?: Record<string, unknown>
+}
+
+export interface UpdateContactParams {
+  email?: string
+  name?: string
+  tags?: string[]
+  status?: ContactStatus
+  metadata?: Record<string, unknown>
+}
+
+export interface ContactListParams {
+  page?: number
+  limit?: number
+  status?: ContactStatus
+  /** Comma-joined when sent over the wire — pass an array, the SDK joins. */
+  tags?: string[]
+}
+
+export interface ContactListResult {
+  contacts: Contact[]
+  total: number
+  page: number
+  limit: number
+}
+
+export interface CreateAudienceListParams {
+  name: string
+  description?: string
+}
+
+// ── Suppressions ──────────────────────────────────────────────────────────
+
+export interface Suppression {
+  id: string
+  email: string
+  reason: string
+  domainId: string
+  createdAt: string
+  domain?: { domain: string }
+}
+
+export interface AddSuppressionParams {
+  email: string
+  /** Free-form label (e.g. "manual", "complaint"). Defaults backend-side. */
+  reason?: string
+  domainId: string
+}
+
+export interface SuppressionListParams {
+  page?: number
+  limit?: number
+  domainId?: string
+  reason?: string
+}
+
+// ── Webhooks ──────────────────────────────────────────────────────────────
+
+export type WebhookEvent =
+  | "sent"
+  | "bounced"
+  | "failed"
+  | "opened"
+  | "clicked"
+  | "unsubscribed"
+
+export interface Webhook {
+  id: string
+  url: string
+  events: string[]
+  active: boolean
+  domainId: string
+  /** Returned only on create — used to verify HMAC signatures of deliveries. */
+  secret?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateWebhookParams {
+  url: string
+  events: WebhookEvent[] | string[]
+  domainId: string
+}
+
+export interface UpdateWebhookParams {
+  url?: string
+  events?: WebhookEvent[] | string[]
+  active?: boolean
+}
+
+// ── Logs ──────────────────────────────────────────────────────────────────
+
+export type MailLogStatus =
+  | "queued"
+  | "processing"
+  | "sent"
+  | "bounced"
+  | "failed"
+
+export interface MailLog {
+  id: string
+  to: string
+  from: string
+  subject: string
+  status: MailLogStatus
+  messageId: string | null
+  domainId: string
+  domain?: { domain: string }
+  templateId: string | null
+  variables: Record<string, unknown> | null
+  scheduledAt?: string | null
+  sentAt: string | null
+  bouncedAt: string | null
+  openedAt?: string | null
+  clickedAt?: string | null
+  error: string | null
+  createdAt: string
+}
+
+export interface LogListParams {
+  page?: number
+  limit?: number
+  status?: MailLogStatus
+  domainId?: string
+  /** ISO timestamp lower bound (inclusive). */
+  from?: string
+  /** ISO timestamp upper bound (inclusive). */
+  to?: string
+}

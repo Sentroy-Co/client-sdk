@@ -6,7 +6,7 @@
 
 <p align="center">
   Official client SDKs for the <a href="https://sentroy.com">Sentroy</a> platform API.<br />
-  <a href="https://sentroy-co.github.io/client-sdk/">API Documentation</a> &middot; <a href="https://sentroy.com">sentroy.com</a>
+  <a href="https://sentroy.com/docs">API Documentation</a> &middot; <a href="https://sentroy.com">sentroy.com</a>
 </p>
 
 ---

@@ -121,6 +121,120 @@ await sentroy.inbox.move(1234, "Trash", {
 await sentroy.inbox.delete(1234, { mailbox: "info@example.com" })
 ```
 
+### Audience
+
+Manage contacts and audience lists from the SDK. Useful for building
+your own newsletter signup form, syncing customers from another system,
+or assembling segments for a campaign.
+
+```ts
+// List + paginate contacts (filter by status / tags)
+const { contacts, total, page, limit } = await sentroy.audience.contacts.list({
+  page: 1,
+  limit: 50,
+  status: "active",
+  tags: ["customer", "vip"],
+})
+
+// Email-prefix autocomplete (capped at 10 server-side)
+const matches = await sentroy.audience.contacts.search("alex@")
+
+// Create a contact
+const contact = await sentroy.audience.contacts.create({
+  email: "user@example.com",
+  name: "Jane Doe",
+  tags: ["beta-tester"],
+  metadata: { signupSource: "landing-2026-q2" },
+})
+
+// Patch — pass any subset of fields. Use `status` to mark unsubscribed.
+await sentroy.audience.contacts.update(contact.id, { tags: ["customer"] })
+
+// Soft-delete (sets status: "unsubscribed" — record is preserved)
+await sentroy.audience.contacts.delete(contact.id)
+```
+
+Audience lists are simple groupings; a single contact can belong to many.
+
+```ts
+// CRUD audience lists
+const lists = await sentroy.audience.lists.list()
+const list = await sentroy.audience.lists.create({
+  name: "Newsletter — May 2026",
+  description: "Opt-ins from the homepage form",
+})
+await sentroy.audience.lists.delete(list.id)
+
+// Membership — scoped to a single list id
+const members = sentroy.audience.lists.members(list.id)
+await members.add(contact.id)
+const inList = await members.list()
+await members.remove(contact.id)
+```
+
+### Suppressions
+
+Suppressed addresses are skipped at send time. Bounces and complaints
+are added automatically; the API is for manually honoring off-platform
+opt-outs or removing a stale entry.
+
+```ts
+const suppressions = await sentroy.suppressions.list({
+  domainId: "domain-id",
+  reason: "complaint",
+  page: 1,
+  limit: 50,
+})
+
+const added = await sentroy.suppressions.add({
+  email: "leaving@example.com",
+  domainId: "domain-id",
+  reason: "manual",
+})
+
+await sentroy.suppressions.remove(added.id)
+```
+
+### Webhooks
+
+Subscribe to delivery events on a per-domain basis. The `secret`
+returned at create time signs every delivery — store it and verify the
+HMAC on your endpoint.
+
+```ts
+const webhook = await sentroy.webhooks.create({
+  url: "https://example.com/webhooks/sentroy",
+  events: ["sent", "bounced", "opened", "clicked", "unsubscribed"],
+  domainId: "domain-id",
+})
+console.log(webhook.secret) // Returned ONCE — store it now
+
+const all = await sentroy.webhooks.list()           // every webhook
+const scoped = await sentroy.webhooks.list("domain-id")
+
+await sentroy.webhooks.update(webhook.id, { active: false })
+await sentroy.webhooks.delete(webhook.id)
+```
+
+### Logs
+
+Query the mail log to debug delivery issues, surface per-message status
+in your own UI, or build a customer-facing activity timeline.
+
+```ts
+const logs = await sentroy.logs.list({
+  status: "bounced",
+  domainId: "domain-id",
+  from: "2026-05-01T00:00:00Z",
+  to: "2026-05-31T23:59:59Z",
+  page: 1,
+  limit: 100,
+})
+
+const log = await sentroy.logs.get(logs[0].id)
+console.log(log.openedAt, log.clickedAt) // tracking timestamps if enabled
+```
+
 ### Send Email
 
 ```ts
