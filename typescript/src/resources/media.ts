@@ -32,11 +32,39 @@ export class MediaResource {
    * is a `Blob` or `File`. Returns the full serialized media record
    * (with `url`, `downloadUrl`, image thumbnails when applicable).
    *
+   * For video uploads, two opt-in flags trigger server-side
+   * processing:
+   *   - `compressVideo`: light single-pass H.264 re-encode at
+   *     source resolution. Trims most uploads by 30–60% with no
+   *     visible quality loss. Synchronous (the upload response
+   *     waits for the encode).
+   *   - `transcodeVideo`: implies `compressVideo`, plus a
+   *     144p/480p/720p/1080p variant ladder. Asynchronous — the
+   *     response comes back immediately with
+   *     `media.processing.status === "queued"` and the ladder
+   *     fills in via `media.videoMeta.variants` over the next
+   *     few minutes. Poll `media.get(...)` to watch the count
+   *     climb; ladder rungs are reachable at `/f/<id>/<height>`.
+   *
    * @example Browser
    * ```ts
    * const file = input.files[0]
    * const media = await sentroy.media.upload("my-bucket", { body: file })
    * console.log(media.url)
+   * ```
+   *
+   * @example Video with multi-quality ladder
+   * ```ts
+   * const media = await sentroy.media.upload("clips", {
+   *   body: videoFile,
+   *   compressVideo: true,
+   *   transcodeVideo: true,
+   * })
+   * // media.processing.status === "queued"
+   * // poll later:
+   * const updated = await sentroy.media.get("clips", media.mediaId)
+   * console.log(updated.videoMeta?.variants.map((v) => v.height))
+   * // → [144, 480, 720, 1080]  (filled in over time)
    * ```
    *
    * @example Node 18+
@@ -74,6 +102,11 @@ export class MediaResource {
     if (params.alt) form.append("alt", params.alt)
     if (params.caption) form.append("caption", params.caption)
     if (params.tags?.length) form.append("tags", params.tags.join(","))
+    // Video processing opt-ins. Backend ignores these for non-video
+    // uploads, so passing on every upload is safe; we still gate on
+    // truthiness to keep the form payload clean.
+    if (params.compressVideo) form.append("compressVideo", "true")
+    if (params.transcodeVideo) form.append("transcodeVideo", "true")
 
     const path = `/buckets/${encodeURIComponent(bucketSlug)}/media`
     if (opts?.onProgress || opts?.signal) {
