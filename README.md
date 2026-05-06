@@ -5,8 +5,8 @@
 <h3 align="center">Sentroy Client SDKs</h3>
 
 <p align="center">
-  Official client SDKs for the <a href="https://sentroy.com">Sentroy</a> platform API.<br />
-  <a href="https://sentroy.com/docs">API Documentation</a> &middot; <a href="https://sentroy.com">sentroy.com</a>
+  Official client SDKs for the <a href="https://sentroy.com">Sentroy</a> business mail &amp; storage platform.<br />
+  <a href="https://docs.sentroy.com"><strong>Documentation</strong></a> &middot; <a href="https://sentroy.com">sentroy.com</a> &middot; <a href="https://status.sentroy.com">Status</a>
 </p>
 
 ---
@@ -21,30 +21,11 @@
 | PHP | [`sentroy-co/client-sdk`](https://packagist.org/packages/sentroy-co/client-sdk) | `composer require sentroy-co/client-sdk` |
 | cURL | — | [Examples](curl/) |
 
-## Features
-
-All SDKs provide the same API surface:
-
-**Mail**
-
-- **Domains** — List and retrieve verified domains
-- **Mailboxes** — List mailbox accounts
-- **Templates** — List and retrieve email templates
-- **Inbox** — Read messages, list folders, manage threads, move/delete
-- **Send** — Send emails with templates or raw HTML
-
-**Storage**
-
-- **Buckets** — Create, list, update, and delete isolated file containers
-- **Media** — Upload, list, download, and delete files inside a bucket
-
-The SDK takes a single `baseUrl` (the platform root, e.g.
-`https://sentroy.com`); the gateway transparently routes mail calls to
-the mail subdomain and storage calls to the storage subdomain.
+All SDKs target the same API surface (mail + storage) and work against either the hosted platform (`https://sentroy.com`) or your own Sentroy deployment — only the `baseUrl` changes.
 
 ## Authentication
 
-All SDKs authenticate via **Access Tokens**. Create one from **Admin > Access Tokens** in your Sentroy dashboard.
+Access tokens carry permission scopes per company. Create one from **Admin → Access Tokens** in your Sentroy dashboard.
 
 ```
 Authorization: Bearer stk_...
@@ -52,25 +33,23 @@ Authorization: Bearer stk_...
 
 ## Documentation
 
-Each SDK has its own README with detailed installation and usage instructions:
+Full reference, code samples in every language, interactive examples and rate-limit details:
 
-- [TypeScript](typescript/) · [raw](https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/typescript/README.md)
-- [Go](go/) · [raw](https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/go/README.md)
-- [Python](python/) · [raw](https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/python/README.md)
-- [PHP](php/) · [raw](https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/php/README.md)
-- [cURL](curl/) · [raw](https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/curl/README.md)
+**[docs.sentroy.com](https://docs.sentroy.com)**
 
-### For AI Agents
+## For AI Agents
 
-Plain-text documentation links for LLM/agent consumption:
+Each SDK ships a single comprehensive `AGENTS.md` reference — feed the raw URL into a context window for full API coverage in one file:
 
 ```
-https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/typescript/README.md
+https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/typescript/AGENTS.md
 https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/go/README.md
 https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/python/README.md
 https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/php/README.md
 https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/curl/README.md
 ```
+
+> Only the TypeScript SDK has split `README.md` (lean, npm-facing) from `AGENTS.md` (full reference). The Go, Python, PHP and cURL READMEs remain comprehensive and double as agent-facing docs.
 
 ## License
 

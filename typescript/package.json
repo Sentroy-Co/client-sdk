@@ -1,6 +1,6 @@
 {
   "name": "@sentroy-co/client-sdk",
-  "version": "2.6.3",
+  "version": "2.6.4",
   "description": "TypeScript SDK for the Sentroy platform — REST resources + React components.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -28,7 +28,8 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "AGENTS.md"
   ],
   "scripts": {
     "build": "tsc",
@@ -49,7 +50,7 @@
     "url": "git+https://github.com/Sentroy-Co/client-sdk.git",
     "directory": "typescript"
   },
-  "homepage": "https://github.com/Sentroy-Co/client-sdk#readme",
+  "homepage": "https://docs.sentroy.com",
   "bugs": {
     "url": "https://github.com/Sentroy-Co/client-sdk/issues"
   },
