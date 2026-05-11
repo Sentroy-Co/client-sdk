@@ -33,7 +33,8 @@
 
 - **Mail** — verified domains, mailboxes, multi-language templates, IMAP-backed inbox, transactional and bulk send, suppressions, webhooks, audience lists, deliverability logs.
 - **Storage** — isolated buckets, multipart uploads, image and media transformations, signed download URLs.
-- **React drop-ins** — `<MediaManager />` and `<MediaManagerTrigger />` for instant uploaders, no glue code (`@sentroy-co/client-sdk/react`).
+- **Env Vault** — runtime env variable management (`@sentroy-co/client-sdk/vault`) — change a value in the dashboard, your app picks it up on the next read; no rebuild.
+- **React drop-ins** — `<MediaManager />`, `<MediaManagerTrigger />` and `<EnvProvider>` / `useEnv()` (`@sentroy-co/client-sdk/react` + `@sentroy-co/client-sdk/vault/react`).
 - **One client, two backends** — point at `https://sentroy.com` for the hosted platform, or your own deployment for self-hosted. Same API, same types.
 
 ## Install
@@ -76,6 +77,34 @@ console.log(media.url) // signed URL, served from the CDN
 ```
 
 That's the smallest useful surface. Every other resource (`domains`, `mailboxes`, `templates`, `inbox`, `audience`, `webhooks`, `suppressions`, `logs`, `buckets`, `media`) follows the same `sentroy.<resource>.<verb>(...)` shape with full TypeScript types.
+
+## Env Vault
+
+Manage your env vars in the dashboard at [vault.sentroy.com](https://vault.sentroy.com), bootstrap your deploy with one token, and read values via a typed helper — no rebuild on change.
+
+```ts
+// server side
+import { getEnv, getEnvOrThrow, preloadEnv } from "@sentroy-co/client-sdk/vault"
+
+await preloadEnv() // optional fail-fast at boot
+const dbUrl = await getEnv("DATABASE_URL")
+const turnstile = await getEnvOrThrow("BETTER_AUTH_TURNSTILE_SECRET")
+```
+
+```tsx
+// React: SSR-injected provider + hook (no FOUC)
+import { getPublicEnvs } from "@sentroy-co/client-sdk/vault"
+import { EnvProvider, useEnv } from "@sentroy-co/client-sdk/vault/react"
+
+// app/layout.tsx (server)
+const envs = await getPublicEnvs()
+return <EnvProvider envs={envs}>{children}</EnvProvider>
+
+// any "use client" component
+const siteKey = useEnv("TURNSTILE_SITE_KEY")
+```
+
+Bootstrap is a single env: `SENTROY_ENV_API_KEY`. Public/private split is enforced server-side — the React hook only ever sees `public: true` variables. Full reference at [docs.sentroy.com/env-vault](https://docs.sentroy.com/env-vault).
 
 ## Self-hosted vs hosted
 

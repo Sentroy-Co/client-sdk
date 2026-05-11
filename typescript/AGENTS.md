@@ -675,11 +675,110 @@ import {
 } from "@sentroy-co/client-sdk/react"
 ```
 
+## Env Vault (`@sentroy-co/client-sdk/vault` + `/vault/react`)
+
+Sentroy Env Vault — centralized runtime env management. Bootstrap is a
+single env (`SENTROY_ENV_API_KEY`); the rest of your config lives in
+the dashboard at `vault.sentroy.com`. Changing a variable does NOT
+require an app rebuild — the next read picks up the new value once the
+in-memory cache TTL elapses (5 min default).
+
+This module is intentionally **separate** from the main `Sentroy`
+client. They use different auth namespaces:
+
+| Surface | Token format | Scope |
+|---|---|---|
+| `Sentroy` (mail/storage) | `stk_...` | per-company access token |
+| Env Vault | `stk_env_...` | per-(project, environment) bootstrap token |
+
+### Server: `getEnv()`
+
+```ts
+import {
+  configureEnvClient,   // optional one-shot config
+  getEnv,               // async, undefined if missing
+  getEnvOrThrow,        // async, throws if missing
+  getAllEnvs,           // bulk: { KEY: value, ... }
+  getPublicEnvs,        // bulk: only `public: true` variables
+  preloadEnv,           // eager hydrate at process boot
+  refreshEnvCache,      // manual invalidation hook
+  setEnvCacheTTL,       // runtime TTL override (seconds)
+} from "@sentroy-co/client-sdk/vault"
+
+// Optional — defaults pull from process.env
+configureEnvClient({
+  baseUrl: "https://sentroy.com",        // or self-hosted Sentroy URL
+  apiKey: process.env.SENTROY_ENV_API_KEY, // default
+  ttlSeconds: 300,                          // 5 min
+  timeoutMs: 5000,
+})
+
+await preloadEnv() // optional: fail-fast if token invalid
+
+const dbUrl = await getEnv("DATABASE_URL")          // string | undefined
+const turn  = await getEnvOrThrow("TURNSTILE_SECRET") // string
+const all   = await getAllEnvs()                     // includes private
+const pub   = await getPublicEnvs()                  // public:true only
+```
+
+### React: SSR-injected provider + hook
+
+```tsx
+// app/layout.tsx (server component)
+import { getPublicEnvs } from "@sentroy-co/client-sdk/vault"
+import { EnvProvider } from "@sentroy-co/client-sdk/vault/react"
+
+export default async function RootLayout({ children }) {
+  const envs = await getPublicEnvs() // public:true only — never leak secrets
+  return (
+    <html>
+      <body>
+        <EnvProvider envs={envs}>{children}</EnvProvider>
+      </body>
+    </html>
+  )
+}
+```
+
+```tsx
+// any "use client" component
+"use client"
+import { useEnv, useAllEnvs, useEnvRefresh } from "@sentroy-co/client-sdk/vault/react"
+
+function CaptchaWidget() {
+  const siteKey = useEnv("TURNSTILE_SITE_KEY") // string | undefined
+  if (!siteKey) return null
+  return <Turnstile siteKey={siteKey} />
+}
+
+function ConfigPanel() {
+  const all = useAllEnvs() // Record<string, string> — public envs only
+  const { refresh, loading } = useEnvRefresh()
+  return <button onClick={refresh} disabled={loading}>Refresh config</button>
+}
+```
+
+### `EnvProvider` props
+
+| Prop | Type | Default | Notes |
+|---|---|---|---|
+| `envs` | `Record<string, string>` | required | SSR-fetched public envs |
+| `refreshUrl` | `string` | `/api/env-vault/public` | Endpoint for client polling |
+| `apiKey` | `string` | `process.env.NEXT_PUBLIC_SENTROY_ENV_API_KEY` | Bearer token for browser polling |
+| `refreshIntervalMs` | `number` | `300000` (5 min) | `0` to disable polling |
+
+### Security notes
+
+- `useEnv()` only ever returns variables marked `public: true` in the dashboard. Server-only secrets stay server-side.
+- The provider's polling is best-effort; network failures keep the previous values (fail-soft).
+- The bootstrap token is per-(project, environment). A `prod` token cannot read `staging` and vice versa.
+- Variable values are AES-256-GCM encrypted at rest in the Sentroy vault DB. Decryption happens server-side just before the fetch endpoint streams the response.
+
 ## Requirements
 
 - Node.js 18+ (uses native `fetch`)
-- React 18+ (only if you import from `/react`)
-- Tailwind CSS in the host app (only for React components)
+- React 18+ (only if you import from `/react` or `/vault/react`)
+- Tailwind CSS in the host app (only for React UI components like `<MediaManager />`)
 
 ## Raw URL — for LLM/agent context windows
 
