@@ -767,6 +767,20 @@ function ConfigPanel() {
 | `apiKey` | `string` | `process.env.NEXT_PUBLIC_SENTROY_ENV_API_KEY` | Bearer token for browser polling |
 | `refreshIntervalMs` | `number` | `300000` (5 min) | `0` to disable polling |
 
+### Debug logging (`SENTROY_ENV_DEBUG`)
+
+Set `SENTROY_ENV_DEBUG=1` (or `true`) on the consuming app to surface every fetch, cache hit, and fallback through `console.log`. Sample output:
+
+```
+[env-vault] fetching https://sentroy.com/api/env-vault/fetch
+[env-vault] fetched 7 var(s) from sentroy-core/prod in 234ms
+[env-vault] BETTER_AUTH_TURNSTILE_SECRET: vault hit
+[env-vault] IPINFO_TOKEN: vault miss → process.env fallback
+[env-vault] AI_GATEWAY_API_KEY: vault error (...) → process.env fallback
+```
+
+Default is off — turn on temporarily after a deploy to verify migrations are reading from the right source, then turn off to keep prod logs clean.
+
 ### Migration helper: `getEnvWithFallback(key)`
 
 For codebases moving from `process.env` to vault gradually, use `getEnvWithFallback` — it tries vault first, falls back to `process.env[key]` on cache miss / fetch failure / missing token. The point is *zero downtime*: deploy the code change before populating the vault, and nothing breaks; fill the vault later, and the same code starts reading from there.

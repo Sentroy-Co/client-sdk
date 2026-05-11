@@ -42,6 +42,23 @@ export interface EnvCacheState {
 const DEFAULT_TTL_MS = 5 * 60 * 1000
 const DEFAULT_BASE_URL = "https://sentroy.com"
 
+/**
+ * Opt-in runtime logging — `SENTROY_ENV_DEBUG=1` set edilirse her fetch
+ * (success/fail), cache hit ve fallback satırı stdout'a yazılır. Default
+ * kapalı; migration verification + prod sorunu debug için.
+ */
+function isDebug(): boolean {
+  const v = readEnv("SENTROY_ENV_DEBUG")
+  return v === "1" || v === "true"
+}
+
+function debugLog(...parts: unknown[]): void {
+  if (isDebug()) {
+    // eslint-disable-next-line no-console
+    console.log("[env-vault]", ...parts)
+  }
+}
+
 interface ClientOptions {
   /** Sentroy core URL (defaults to env or https://sentroy.com). */
   baseUrl?: string
@@ -111,12 +128,15 @@ async function fetchVariables(): Promise<EnvCacheState> {
     )
   }
   const url = `${resolvedBaseUrl}/api/env-vault/fetch`
+  const started = Date.now()
+  debugLog(`fetching ${url}`)
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${resolvedApiKey}` },
     signal: AbortSignal.timeout(fetchTimeoutMs),
     cache: "no-store",
   })
   if (!res.ok) {
+    debugLog(`fetch failed: ${res.status} ${res.statusText} (${Date.now() - started}ms)`)
     throw new Error(
       `env-vault fetch failed: ${res.status} ${res.statusText} (url=${url})`,
     )
@@ -131,6 +151,9 @@ async function fetchVariables(): Promise<EnvCacheState> {
   if (!json.data) throw new Error("env-vault fetch: malformed response")
   const map = new Map<string, EnvVariable>()
   for (const v of json.data.variables) map.set(v.key, v)
+  debugLog(
+    `fetched ${map.size} var(s) from ${json.data.project}/${json.data.environment} in ${Date.now() - started}ms`,
+  )
   return {
     fetchedAt: Date.now(),
     variables: map,
@@ -201,14 +224,27 @@ export async function getEnvWithFallback(
 ): Promise<string | undefined> {
   // Token yoksa bypass — vault fetch denemeyelim, log spam etmeyelim.
   const apiKey = resolvedApiKey ?? readEnv("SENTROY_ENV_API_KEY")
-  if (!apiKey) return readEnv(key)
+  if (!apiKey) {
+    const pe = readEnv(key)
+    debugLog(`${key}: no-token bypass → ${pe !== undefined ? "process.env hit" : "miss"}`)
+    return pe
+  }
   try {
     const v = await getEnv(key)
-    if (v !== undefined) return v
-  } catch {
-    // Fetch fail / network down / 401 → sessizce fallback
+    if (v !== undefined) {
+      debugLog(`${key}: vault hit`)
+      return v
+    }
+    const pe = readEnv(key)
+    debugLog(`${key}: vault miss → ${pe !== undefined ? "process.env fallback" : "undefined"}`)
+    return pe
+  } catch (err) {
+    const pe = readEnv(key)
+    debugLog(
+      `${key}: vault error (${err instanceof Error ? err.message : String(err)}) → ${pe !== undefined ? "process.env fallback" : "undefined"}`,
+    )
+    return pe
   }
-  return readEnv(key)
 }
 
 /** Tüm env'leri map olarak döner (dump için kullanışlı). */
