@@ -106,6 +106,20 @@ const siteKey = useEnv("TURNSTILE_SITE_KEY")
 
 Bootstrap is a single env: `SENTROY_ENV_API_KEY`. Public/private split is enforced server-side — the React hook only ever sees `public: true` variables. Full reference at [docs.sentroy.com/env-vault](https://docs.sentroy.com/env-vault).
 
+### CLI
+
+The package ships a `sentroy` CLI for syncing local `.env` files to the vault — useful for build pipelines and onboarding.
+
+```bash
+# Use SENTROY_ENV_API_KEY (or pass --token=stk_env_...)
+npx sentroy env push .env.production --delete-missing
+npx sentroy env diff .env.production
+npx sentroy env pull .env.staging --force
+npx sentroy env list --values --public-only
+```
+
+The token's (project, environment) scope is implicit. `--delete-missing` makes the push a full sync — keys not in the local file are removed from the vault. The token must have `write` permission for `push`; everything else only needs `read`.
+
 ## Self-hosted vs hosted
 
 The SDK is identical in both modes. Only `baseUrl` changes:

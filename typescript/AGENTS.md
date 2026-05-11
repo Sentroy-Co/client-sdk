@@ -774,6 +774,43 @@ function ConfigPanel() {
 - The bootstrap token is per-(project, environment). A `prod` token cannot read `staging` and vice versa.
 - Variable values are AES-256-GCM encrypted at rest in the Sentroy vault DB. Decryption happens server-side just before the fetch endpoint streams the response.
 
+### CLI (`sentroy env ...`)
+
+The package ships a `sentroy` binary. After `npm install` (or `npm install -g`) it's available on `PATH`; `npx sentroy ...` works without a global install.
+
+Auth is the same `SENTROY_ENV_API_KEY` used by `getEnv()` (or pass `--token=stk_env_...`). Base URL defaults to `https://sentroy.com` (override with `SENTROY_ENV_API_URL` or `--url=`). The token's (project, environment) scope is implicit — never specified on the CLI.
+
+```bash
+# Push a local file to the vault. Without --delete-missing it's upsert-only.
+# With --delete-missing it's a full sync — any vault key not in the file
+# is removed (CLI prompts for confirmation interactively).
+sentroy env push .env.production --delete-missing
+sentroy env push .env.production --dry-run     # show diff, no writes
+
+# Diff local vs vault without writing.
+sentroy env diff .env.production --delete-missing
+
+# Pull the vault into a local file. Refuses to overwrite without --force.
+sentroy env pull .env.staging --force
+
+# List keys (or KEY=value with --values; only public-flagged with --public-only).
+sentroy env list
+sentroy env list --values
+sentroy env list --public-only
+```
+
+`push` requires the token to have `write` permission (toggle when generating the token in the dashboard). `pull`, `list`, and `diff` only need `read`.
+
+The CLI parses the same `.env` flavour as the dashboard's developer mode:
+
+- blank line resets pending description / public flag
+- `# any comment` above a key becomes the variable's description
+- `# @public` on its own line marks the next key as browser-readable
+- `KEY="quoted with spaces"` and `KEY='single quoted'` both supported
+- `export KEY=value` prefix is stripped
+
+REST endpoint behind `push`: `POST /api/env-vault/push` with body `{ entries: [{key, value, public?, description?}], deleteMissing?: boolean }` and `Authorization: Bearer stk_env_...`. Response: `{ added, updated, unchanged, deleted, total, project, environment }`. Each insert/update/delete writes one audit log entry (checksum, no plaintext) tagged `source: "cli-push"`.
+
 ## Requirements
 
 - Node.js 18+ (uses native `fetch`)
