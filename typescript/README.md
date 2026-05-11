@@ -84,11 +84,15 @@ Manage your env vars in the dashboard at [vault.sentroy.com](https://vault.sentr
 
 ```ts
 // server side
-import { getEnv, getEnvOrThrow, preloadEnv } from "@sentroy-co/client-sdk/vault"
+import { getEnv, getEnvOrThrow, getEnvWithFallback, preloadEnv } from "@sentroy-co/client-sdk/vault"
 
 await preloadEnv() // optional fail-fast at boot
 const dbUrl = await getEnv("DATABASE_URL")
 const turnstile = await getEnvOrThrow("BETTER_AUTH_TURNSTILE_SECRET")
+
+// Migration helper — vault'tan oku, yoksa process.env fallback.
+// Sentroy app'lerini kademeli olarak migrate ederken kullanışlı.
+const stripe = await getEnvWithFallback("STRIPE_SECRET_KEY")
 ```
 
 ```tsx
@@ -105,6 +109,21 @@ const siteKey = useEnv("TURNSTILE_SITE_KEY")
 ```
 
 Bootstrap is a single env: `SENTROY_ENV_API_KEY`. Public/private split is enforced server-side — the React hook only ever sees `public: true` variables. Full reference at [docs.sentroy.com/env-vault](https://docs.sentroy.com/env-vault).
+
+### Webhooks (real-time invalidation)
+
+Skip the 5-min cache TTL — point the vault at your app and it'll POST whenever any variable changes. The default handler verifies the HMAC-SHA256 signature and refreshes the cache:
+
+```ts
+// app/api/sentroy/vault-webhook/route.ts
+import { createVaultWebhookHandler } from "@sentroy-co/client-sdk/vault"
+
+export const POST = createVaultWebhookHandler({
+  secret: process.env.SENTROY_VAULT_WEBHOOK_SECRET!,
+})
+```
+
+Configure the receiver URL in the vault dashboard under the project's **Webhooks** tab; the secret comes back once at create-time. Provide your own `onChange` handler for custom logic.
 
 ### CLI
 

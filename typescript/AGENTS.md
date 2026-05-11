@@ -767,12 +767,72 @@ function ConfigPanel() {
 | `apiKey` | `string` | `process.env.NEXT_PUBLIC_SENTROY_ENV_API_KEY` | Bearer token for browser polling |
 | `refreshIntervalMs` | `number` | `300000` (5 min) | `0` to disable polling |
 
+### Migration helper: `getEnvWithFallback(key)`
+
+For codebases moving from `process.env` to vault gradually, use `getEnvWithFallback` — it tries vault first, falls back to `process.env[key]` on cache miss / fetch failure / missing token. The point is *zero downtime*: deploy the code change before populating the vault, and nothing breaks; fill the vault later, and the same code starts reading from there.
+
+```ts
+import { getEnvWithFallback } from "@sentroy-co/client-sdk/vault"
+
+// Old:                     process.env.STRIPE_SECRET_KEY
+const stripeKey = await getEnvWithFallback("STRIPE_SECRET_KEY")
+```
+
+After the value is in the vault and you've verified it's being read, swap the call to `getEnv` (or `getEnvOrThrow`) so a future `process.env` re-introduction doesn't silently shadow the vault value.
+
+Bootstrap path (no `SENTROY_ENV_API_KEY` set) skips the fetch entirely and goes straight to `process.env` — so an app deployed without vault credentials still boots and reads its envs the legacy way. This is intentional: the vault is opt-in, not a hard requirement.
+
 ### Security notes
 
 - `useEnv()` only ever returns variables marked `public: true` in the dashboard. Server-only secrets stay server-side.
 - The provider's polling is best-effort; network failures keep the previous values (fail-soft).
 - The bootstrap token is per-(project, environment). A `prod` token cannot read `staging` and vice versa.
 - Variable values are AES-256-GCM encrypted at rest in the Sentroy vault DB. Decryption happens server-side just before the fetch endpoint streams the response.
+
+### Webhooks (`createVaultWebhookHandler`)
+
+Variable changes can push directly to your app instead of waiting on the 5-min cache TTL. Configure a webhook in the dashboard under a project's **Webhooks** tab — Sentroy will POST to your URL on every `variable.create | variable.update | variable.delete`.
+
+```ts
+// app/api/sentroy/vault-webhook/route.ts
+import { createVaultWebhookHandler } from "@sentroy-co/client-sdk/vault"
+
+export const POST = createVaultWebhookHandler({
+  secret: process.env.SENTROY_VAULT_WEBHOOK_SECRET!,
+  // optional — default behaviour: await refreshEnvCache()
+  async onChange(payload) {
+    console.log("vault changed", payload.action, payload.keys)
+    // your invalidation logic, then:
+    await refreshEnvCache()
+  },
+  // optional — replay-window check, default 5 min
+  maxAgeMs: 5 * 60 * 1000,
+})
+```
+
+Payload (signed):
+```json
+{
+  "event": "vault.variable.changed",
+  "project": "<projectId>",
+  "environment": "prod",
+  "action": "create" | "update" | "delete",
+  "keys": ["DATABASE_URL", "..."],
+  "timestamp": 1731430000000
+}
+```
+
+Headers Sentroy sends: `X-Sentroy-Signature: sha256=<hex>` (HMAC over the raw body), `X-Sentroy-Event: vault.variable.changed`, `X-Sentroy-Webhook-Id: <id>`.
+
+The handler returns:
+- `200` with `{ ok: true }` after a verified signature + completed `onChange`
+- `401` for missing/malformed/invalid signature, or timestamp outside the replay window
+- `400` for an invalid JSON body
+- `500` if `onChange` throws
+
+Delivery is fire-and-forget on the Sentroy side with a 5 sec timeout; the dashboard records the last delivery's status + error string per webhook for visibility. Failed deliveries are not auto-retried (admin can flip the enabled toggle to retry manually by re-saving a variable, or we'll add a "resend" button later).
+
+The vault webhook secret namespace is `whsec_*` — distinct from access tokens (`stk_*` / `stk_env_*`).
 
 ### CLI (`sentroy env ...`)
 
