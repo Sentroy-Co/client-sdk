@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Cropper, type CropperRef } from "react-advanced-cropper"
 import { motion, AnimatePresence } from "motion/react"
-import "react-advanced-cropper/dist/style.css"
 
 /**
  * Image crop dialog — iOS Photos benzeri full-screen crop UI. Önceki
  * `react-easy-crop` implementation'ı drag UX ve preview render
  * tarafında zayıftı; `react-advanced-cropper` daha modern stencil
  * sistemi + native-feel pinch/zoom verir.
+ *
+ * **CSS:** Caller uygulamada `react-advanced-cropper/dist/style.css`'i
+ * global olarak import edilmiş olmalıdır (örn. `globals.css` üzerinden veya
+ * root layout). SDK içinden CSS import etsek `tsc`'nin CJS çıktısında
+ * runtime `require("...css")` doğar, Next.js bunu bundle'a alamaz ve
+ * "Module factory is not available" hatasıyla patlar.
  *
  * Akış (storage upload pipeline'ından preprocess hook):
  *   - Aspect preset toolbar (1:1, 4:3, 16:9, 3:2, 9:16, Free)
@@ -319,7 +324,7 @@ export function CropDialog({
           {/* Main: cropper + side panel */}
           <div className="flex flex-1 min-h-0 flex-col md:flex-row">
             {/* Cropper stage */}
-            <div className="relative flex-1 bg-black">
+            <div className="relative flex-1 bg-black min-h-[240px]">
               {tooLarge ? (
                 <div className="flex h-full w-full items-center justify-center p-6 text-center text-sm text-white/70">
                   Image too large to crop in browser. Upload as-is or resize
