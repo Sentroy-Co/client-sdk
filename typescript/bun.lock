@@ -5,7 +5,7 @@
       "name": "@sentroy-co/client-sdk",
       "dependencies": {
         "motion": "^12.38.0",
-        "react-advanced-cropper": "^0.20.1",
+        "react-mobile-cropper": "^0.10.0",
       },
       "devDependencies": {
         "@types/node": "^25.6.0",
@@ -32,7 +32,7 @@
 
     "@types/react-dom": ["@types/react-dom@19.2.3", "", { "peerDependencies": { "@types/react": "^19.2.0" } }, "sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ=="],
 
-    "advanced-cropper": ["advanced-cropper@0.17.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Z1P0sYOXa2tqZjeY742QtNERofXh1AuOa27LEurO9rbx3IfzLrGQlzy7sWEc5VN9hRg+J/qCiMmnB6tUDLb1TA=="],
+    "advanced-cropper": ["advanced-cropper@0.18.0", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Bo0fiW8F+kI4f8zEm8YXIDkGNi+aXaQPxqDijU7hY+1ETACbvFnNCxssspgAwHBy9RpFlcXMmjcq+LImUOhaqQ=="],
 
     "classnames": ["classnames@2.5.1", "", {}, "sha512-saHYOzhIQs6wy2sVxTM6bUDsQO4F50V9RQ22qBpEdCW+I+/Wmke2HOl6lS6dTpdxVhb88/I6+Hs+438c3lfUow=="],
 
@@ -48,9 +48,11 @@
 
     "react": ["react@19.2.5", "", {}, "sha512-llUJLzz1zTUBrskt2pwZgLq59AemifIftw4aB7JxOqf1HY2FDaGDxgwpAPVzHU1kdWabH7FauP4i1oEeer2WCA=="],
 
-    "react-advanced-cropper": ["react-advanced-cropper@0.20.1", "", { "dependencies": { "advanced-cropper": "~0.17.1", "classnames": "^2.2.6", "tslib": "^2.4.0" }, "peerDependencies": { "react": ">=16.8.0" } }, "sha512-Pcmkv0xQMpig6+LkM+zLbEuqBbYG3+CwXvIfYU+LDNn9l8t91Jm0fp9MSTNW0pjIvT6frAGTfmlnvnZW4PEs7Q=="],
+    "react-advanced-cropper": ["react-advanced-cropper@0.19.6", "", { "dependencies": { "advanced-cropper": "~0.18.0", "classnames": "^2.2.6", "tslib": "^2.4.0" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0" } }, "sha512-Qm690UgsrvUb2QGuJd2qP4x81B3OQo00wPncXyNGNnOQ/gGviCNZzQFa+FLWM9PetTahL53qjHZzTT21r0W3FA=="],
 
     "react-dom": ["react-dom@19.2.5", "", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.5" } }, "sha512-J5bAZz+DXMMwW/wV3xzKke59Af6CHY7G4uYLN1OvBcKEsWOs4pQExj86BBKamxl/Ik5bx9whOrvBlSDfWzgSag=="],
+
+    "react-mobile-cropper": ["react-mobile-cropper@0.10.0", "", { "dependencies": { "classnames": "^2.2.6", "react-advanced-cropper": "~0.19.3", "tslib": "^2.4.0" }, "peerDependencies": { "react": "^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0" } }, "sha512-4/7YIpVtcphJyWguIrYITbodKZ3IkWzrY9F01m4EufmrYnVE594t7F1iR9dxUaVcAfL9W1TBtktUJq3PLSz8/Q=="],
 
     "scheduler": ["scheduler@0.27.0", "", {}, "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q=="],
 

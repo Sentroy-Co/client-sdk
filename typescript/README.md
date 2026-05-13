@@ -80,7 +80,7 @@ That's the smallest useful surface. Every other resource (`domains`, `mailboxes`
 
 ## React: CropDialog
 
-A full-screen image crop dialog built on [`react-advanced-cropper`](https://advanced-cropper.github.io/react-advanced-cropper/). Lazy subpath — only imported when you reference it.
+A full-screen, iOS Photos-style image crop dialog built on [`react-mobile-cropper`](https://advanced-cropper.github.io/react-mobile-cropper/) (which sits on top of [`react-advanced-cropper`](https://advanced-cropper.github.io/react-advanced-cropper/)). Lazy subpath — only imported when you reference it.
 
 **1. Add the stylesheet once** (root layout / `_app` / global CSS entry — anywhere it loads on every page that may open the dialog):
 
@@ -88,7 +88,7 @@ A full-screen image crop dialog built on [`react-advanced-cropper`](https://adva
 import "@sentroy-co/client-sdk/react/crop/styles.css"
 ```
 
-The bundled stylesheet ships the cropper's baseline geometry + a packaged `compact` theme + a few opinionated overrides. You can browse all upstream theme variants at [advanced-cropper themes](https://advanced-cropper.github.io/react-advanced-cropper/docs/guides/themes); if you want a different look, swap our stylesheet for the package's `react-advanced-cropper/dist/style.css` plus your theme of choice — but order matters (baseline first, then theme).
+We ship `react-mobile-cropper`'s baseline `style.css`, no extra theme. If you'd rather use the desktop-flavored variants (`compact` / `bubble` / `classic` / `corners` from advanced-cropper, or the mobile baseline directly), see [advanced-cropper themes](https://advanced-cropper.github.io/react-advanced-cropper/docs/guides/themes) and import the package CSS yourself instead of ours.
 
 **2. Open the dialog with a `File`:**
 

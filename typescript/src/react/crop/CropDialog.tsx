@@ -1,30 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Cropper, type CropperRef } from "react-advanced-cropper"
+import { Cropper, type CropperRef } from "react-mobile-cropper"
 import { motion, AnimatePresence } from "motion/react"
 
 /**
- * Image crop dialog — iOS Photos benzeri full-screen crop UI. Önceki
- * `react-easy-crop` implementation'ı drag UX ve preview render
- * tarafında zayıftı; `react-advanced-cropper` daha modern stencil
- * sistemi + native-feel pinch/zoom verir.
+ * Image crop dialog — iOS Photos benzeri full-screen crop UI.
+ * `react-mobile-cropper` üzerine kurulu; paket native olarak iOS-vari
+ * stencil + handler + transition davranışı veriyor (manual layout/icon
+ * gerek yok).
  *
- * **CSS:** Caller uygulamada `react-advanced-cropper/dist/style.css`'i
- * global olarak import edilmiş olmalıdır (örn. `globals.css` üzerinden veya
- * root layout). SDK içinden CSS import etsek `tsc`'nin CJS çıktısında
- * runtime `require("...css")` doğar, Next.js bunu bundle'a alamaz ve
- * "Module factory is not available" hatasıyla patlar.
+ * iOS Photos pattern:
+ *   - Header: Cancel (sol) — "Crop" başlığı (orta) — Done (sağ)
+ *   - Main: Cropper full width, stencil ile karartılmış kenar
+ *   - Bottom toolbar: aspect chip'leri (Free / 1:1 / 4:3 / 16:9 / 3:2 / 9:16)
+ *     + sağ tarafta tek rotate ikonu
  *
- * Akış (storage upload pipeline'ından preprocess hook):
- *   - Aspect preset toolbar (1:1, 4:3, 16:9, 3:2, 9:16, Free)
- *   - Rotate 90° CW/CCW butonları (R / Shift+R)
- *   - Cropper'ın `getCanvas()` çıktısından **live preview**
- *     thumbnail — kullanıcı Apply'a basmadan sonucu görür.
- *   - Output pixel boyutu (örn. 1200×800) read-out.
- *   - Apply: ref üzerinden `getCanvas().toBlob` → File.
- *   - "Use original": orijinal File döner; Cancel: null.
- *
- * Tam ekran: `inset-0`, scrim'siz; consent flow gibi destination-only UX —
- * dialog her şeyi kaplar, dikkat dağıtmaz.
+ * Preview thumbnail kasıtlı olarak yok — iOS Photos'ta da yok; kullanıcı
+ * stencil'in içini direkt görüyor.
  *
  * Lazy subpath (`@sentroy-co/client-sdk/react/crop`) — ana SDK import'u
  * cropper bundle'ı yutmasın.
@@ -43,8 +34,7 @@ const ASPECT_PRESETS: Array<{
   { id: "9:16", label: "9:16", aspect: 9 / 16 },
 ]
 
-const MAX_PIXEL_GUARD = 50_000_000 // ~24 MP — üstü tarayıcı memory peak'i riskli
-const PREVIEW_MAX_DIM = 240
+const MAX_PIXEL_GUARD = 50_000_000 // ~24 MP
 
 export interface CropDialogProps {
   open: boolean
@@ -55,8 +45,7 @@ export interface CropDialogProps {
   onClose: (result: File | null) => void
   /** Default aspect preset id'si — 'free' (default) veya '1:1', '16:9', vb. */
   defaultAspect?: string
-  /** Output JPEG quality 0-1 (default 0.92). Convert sonucu daima image/jpeg
-   *  veya orijinal MIME (PNG'ler için PNG korunur). */
+  /** Output JPEG quality 0-1 (default 0.92). PNG'ler için PNG korunur. */
   outputQuality?: number
 }
 
@@ -71,13 +60,7 @@ export function CropDialog({
   const [aspectId, setAspectId] = useState(defaultAspect)
   const [busy, setBusy] = useState(false)
   const [tooLarge, setTooLarge] = useState(false)
-  const [outputSize, setOutputSize] = useState<{ w: number; h: number } | null>(
-    null,
-  )
-  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null)
-
   const cropperRef = useRef<CropperRef | null>(null)
-  const previewRafRef = useRef<number | null>(null)
 
   // Object URL lifecycle
   useEffect(() => {
@@ -86,9 +69,6 @@ export function CropDialog({
     setImageUrl(url)
     setAspectId(defaultAspect)
     setTooLarge(false)
-    setOutputSize(null)
-    setPreviewDataUrl(null)
-    // Pixel guard — large image decode tarayıcıyı çökertir
     const img = new Image()
     img.onload = () => {
       if (img.naturalWidth * img.naturalHeight > MAX_PIXEL_GUARD) {
@@ -96,98 +76,36 @@ export function CropDialog({
       }
     }
     img.src = url
-    return () => {
-      URL.revokeObjectURL(url)
-      if (previewRafRef.current !== null) {
-        cancelAnimationFrame(previewRafRef.current)
-        previewRafRef.current = null
-      }
-    }
+    return () => URL.revokeObjectURL(url)
   }, [open, file, defaultAspect])
 
   const aspectRatio =
     ASPECT_PRESETS.find((p) => p.id === aspectId)?.aspect ?? undefined
 
-  // Aspect preset değişirse cropper coordinates'ini yeni aspect'e göre
-  // güncelle. `setCoordinates` ile aspect'i zorla.
+  // Aspect preset değişirse stencil koordinatlarını yeni aspect'e snap'le
   useEffect(() => {
-    if (!cropperRef.current) return
-    if (aspectRatio === undefined) return
-    const state = cropperRef.current.getState()
-    if (!state) return
-    const { coordinates } = state
-    if (!coordinates) return
-    const current = coordinates.width / coordinates.height
-    if (Math.abs(current - aspectRatio) < 0.001) return
-    // Aspect ratio'ya snap — width'i koru, height'i hesapla
-    const newWidth = coordinates.width
-    const newHeight = coordinates.width / aspectRatio
-    cropperRef.current.setCoordinates({
-      width: newWidth,
-      height: newHeight,
-    })
+    const cropper = cropperRef.current
+    if (!cropper || aspectRatio === undefined) return
+    const state = cropper.getState()
+    const c = state?.coordinates
+    if (!c) return
+    const newWidth = c.width
+    const newHeight = c.width / aspectRatio
+    cropper.setCoordinates({ width: newWidth, height: newHeight })
   }, [aspectRatio, aspectId])
-
-  // Live preview render — cropper change event'inde getCanvas() ile
-  // küçük thumbnail üret. RAF ile throttle.
-  const renderPreview = useCallback(() => {
-    if (previewRafRef.current !== null) {
-      cancelAnimationFrame(previewRafRef.current)
-    }
-    previewRafRef.current = requestAnimationFrame(() => {
-      previewRafRef.current = null
-      const cropper = cropperRef.current
-      if (!cropper) return
-      // Önce gerçek crop pixel boyutunu öğren; preview canvas'ını aspect
-      // koruyarak max edge PREVIEW_MAX_DIM'e fit ediyoruz. `getCanvas`
-      // sadece `width` verince paket aspect'i koruyup height'i otomatik
-      // hesaplıyor. `maxWidth/maxHeight` paket API'sinde yok — eski
-      // çağrımız sessiz fail edip canvas üretmiyordu.
-      const state = cropper.getState()
-      const c = state?.coordinates
-      if (!c || c.width === 0 || c.height === 0) return
-      const scale =
-        c.width >= c.height
-          ? PREVIEW_MAX_DIM / c.width
-          : PREVIEW_MAX_DIM / c.height
-      const previewWidth = Math.max(1, Math.round(c.width * scale))
-      const canvas = cropper.getCanvas({
-        width: previewWidth,
-        imageSmoothingEnabled: true,
-        imageSmoothingQuality: "medium",
-      })
-      if (!canvas) return
-      setOutputSize({ w: Math.round(c.width), h: Math.round(c.height) })
-      // Data URL — küçük canvas; performant
-      try {
-        setPreviewDataUrl(canvas.toDataURL("image/jpeg", 0.7))
-      } catch {
-        // toDataURL nadir tainted-canvas durumunda fail edebilir; sessiz geç
-      }
-    })
-  }, [])
-
-  const handleCropperChange = useCallback(() => {
-    renderPreview()
-  }, [renderPreview])
-
-  const handleCropperReady = useCallback(() => {
-    renderPreview()
-  }, [renderPreview])
 
   const handleApply = useCallback(async () => {
     const cropper = cropperRef.current
     if (!cropper) return
     setBusy(true)
     try {
-      const canvas = cropper.getCanvas({
-        imageSmoothingQuality: "high",
-      })
+      const canvas = cropper.getCanvas({ imageSmoothingQuality: "high" })
       if (!canvas) {
         setBusy(false)
         return
       }
-      const outputMime = file.type === "image/png" ? "image/png" : "image/jpeg"
+      const outputMime =
+        file.type === "image/png" ? "image/png" : "image/jpeg"
       const blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob(
           (b) => resolve(b),
@@ -212,14 +130,11 @@ export function CropDialog({
 
   const handleUseOriginal = useCallback(() => onClose(file), [file, onClose])
   const handleCancel = useCallback(() => onClose(null), [onClose])
-  const handleRotate = useCallback((delta: 90 | -90) => {
-    cropperRef.current?.rotateImage(delta)
-  }, [])
-  const handleFlip = useCallback((axis: "h" | "v") => {
-    cropperRef.current?.flipImage(axis === "h", axis === "v")
+  const handleRotate = useCallback(() => {
+    cropperRef.current?.rotateImage(90)
   }, [])
 
-  // Keyboard shortcuts — ESC kapat, R rotate, F flip
+  // ESC kapat, R rotate
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -236,7 +151,7 @@ export function CropDialog({
       }
       if (e.key === "r" || e.key === "R") {
         e.preventDefault()
-        handleRotate(e.shiftKey ? -90 : 90)
+        handleRotate()
       }
     }
     window.addEventListener("keydown", onKey)
@@ -252,22 +167,36 @@ export function CropDialog({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          // Tam ekran — scrim değil, kendisi background; iOS Photos UX
-          className="fixed inset-0 z-[60] flex flex-col bg-black text-white"
+          // Inline color — host app'in tema değişkenleri text-white
+          // utility'sini override etse bile child icon/text bu rengi
+          // inherit eder (rotate ikonu, chip metinleri vs).
+          style={{ color: "#ffffff" }}
+          className="fixed inset-0 z-[60] flex flex-col bg-black"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-4 py-3 backdrop-blur-sm">
+          {/* Header — iOS Photos: Cancel sol / başlık orta / Done sağ */}
+          <header
+            className="flex items-center justify-between gap-3 px-4 py-3"
+            style={{
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
             <button
               type="button"
               onClick={handleCancel}
               disabled={busy}
-              className="rounded-md px-3 py-1.5 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+              style={{ color: "rgba(255,255,255,0.85)" }}
+              className="rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-white/10 disabled:opacity-50"
             >
               Cancel
             </button>
             <div className="flex min-w-0 flex-col items-center text-center">
-              <span className="text-sm font-semibold">Crop image</span>
-              <span className="truncate max-w-xs text-[11px] text-white/50">
+              <span className="text-sm font-semibold">Crop</span>
+              <span
+                style={{ color: "rgba(255,255,255,0.5)" }}
+                className="truncate max-w-xs text-[11px]"
+              >
                 {file.name}
               </span>
             </div>
@@ -275,19 +204,49 @@ export function CropDialog({
               type="button"
               onClick={handleApply}
               disabled={busy || tooLarge}
-              // Inline color — host app'in Tailwind tema CSS değişkenleri
-              // `text-black` / `bg-white` class'larını override edebiliyor
-              // (Sentroy console gibi). Sabit hex ile kontrast garanti.
               style={{ backgroundColor: "#fff", color: "#0a0a0a" }}
               className="rounded-md px-3 py-1.5 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {busy ? "Cropping…" : "Apply"}
+              {busy ? "Cropping…" : "Done"}
             </button>
+          </header>
+
+          {/* Main: cropper full bleed */}
+          <div className="relative flex-1 min-h-0 bg-black">
+            {tooLarge ? (
+              <div
+                style={{ color: "rgba(255,255,255,0.7)" }}
+                className="flex h-full w-full items-center justify-center p-6 text-center text-sm"
+              >
+                Image too large to crop in browser. Upload as-is or resize
+                beforehand.
+              </div>
+            ) : (
+              <Cropper
+                ref={cropperRef}
+                src={imageUrl}
+                stencilProps={{
+                  aspectRatio: aspectRatio,
+                }}
+                className="sentroy-mobile-cropper"
+              />
+            )}
           </div>
 
-          {/* Aspect + rotate toolbar */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-black/30 px-3 py-2">
-            <div className="flex flex-1 flex-wrap items-center gap-1">
+          {/* Bottom toolbar — aspect chips (sol) + rotate (sağ).
+              iOS Photos pattern. */}
+          <footer
+            className="flex items-center gap-2 px-3 py-3"
+            style={{
+              borderTop: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            <div
+              className="flex flex-1 items-center gap-1 overflow-x-auto"
+              style={{ scrollbarWidth: "none" }}
+            >
               {ASPECT_PRESETS.map((p) => {
                 const active = aspectId === p.id
                 return (
@@ -298,154 +257,52 @@ export function CropDialog({
                     style={
                       active
                         ? { backgroundColor: "#fff", color: "#0a0a0a" }
-                        : undefined
+                        : { color: "rgba(255,255,255,0.7)" }
                     }
-                    className={cls(
-                      "rounded-full px-3 py-1 text-xs transition-colors",
-                      active
-                        ? "font-medium"
-                        : "text-white/60 hover:bg-white/10 hover:text-white",
-                    )}
+                    className={
+                      "shrink-0 rounded-full px-3 py-1.5 text-xs transition-colors " +
+                      (active ? "font-medium" : "hover:bg-white/10")
+                    }
                   >
                     {p.label}
                   </button>
                 )
               })}
             </div>
-            <div className="flex items-center gap-1">
-              <ToolbarIconButton
-                onClick={() => handleRotate(-90)}
-                title="Rotate left (Shift+R)"
-                ariaLabel="Rotate left"
-              >
-                <RotateLeftIcon />
-              </ToolbarIconButton>
-              <ToolbarIconButton
-                onClick={() => handleRotate(90)}
-                title="Rotate right (R)"
-                ariaLabel="Rotate right"
-              >
-                <RotateRightIcon />
-              </ToolbarIconButton>
-              <span className="mx-1 h-5 w-px bg-white/15" />
-              <ToolbarIconButton
-                onClick={() => handleFlip("h")}
-                title="Flip horizontal"
-                ariaLabel="Flip horizontal"
-              >
-                <FlipHorizontalIcon />
-              </ToolbarIconButton>
-              <ToolbarIconButton
-                onClick={() => handleFlip("v")}
-                title="Flip vertical"
-                ariaLabel="Flip vertical"
-              >
-                <FlipVerticalIcon />
-              </ToolbarIconButton>
-            </div>
-          </div>
+            <div
+              className="mx-2 hidden h-5 w-px md:block"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            />
+            <button
+              type="button"
+              onClick={handleRotate}
+              title="Rotate (R)"
+              aria-label="Rotate"
+              style={{ color: "rgba(255,255,255,0.85)" }}
+              className="inline-flex shrink-0 size-9 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+            >
+              <RotateIcon />
+            </button>
+            <button
+              type="button"
+              onClick={handleUseOriginal}
+              disabled={busy}
+              style={{ color: "rgba(255,255,255,0.6)" }}
+              className="hidden shrink-0 rounded-md px-3 py-1.5 text-[11px] transition-colors hover:bg-white/10 disabled:opacity-50 sm:inline-flex"
+            >
+              Use original
+            </button>
+          </footer>
 
-          {/* Main: cropper + side panel */}
-          <div className="flex flex-1 min-h-0 flex-col md:flex-row">
-            {/* Cropper stage */}
-            <div className="relative flex-1 min-h-[240px] min-w-0 bg-black">
-              {tooLarge ? (
-                <div className="flex h-full w-full items-center justify-center p-6 text-center text-sm text-white/70">
-                  Image too large to crop in browser. Upload as-is or resize
-                  beforehand.
-                </div>
-              ) : (
-                <Cropper
-                  ref={cropperRef}
-                  src={imageUrl}
-                  className="sentroy-cropper"
-                  // Stencil props — aspect lock + iOS-like rect stencil grid
-                  stencilProps={{
-                    aspectRatio: aspectRatio,
-                    grid: true,
-                    movable: true,
-                    resizable: true,
-                  }}
-                  // Background overlay'i koyu yap (image dışı kalan kısım)
-                  backgroundClassName="sentroy-cropper-background"
-                  onChange={handleCropperChange}
-                  onReady={handleCropperReady}
-                />
-              )}
-            </div>
-
-            {/* Side panel: live preview + readout. Mobile'da max-h ile
-                clamp + overflow-y-auto — uzun bilgilerle taşmasın. */}
-            <aside className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-white/10 bg-black/30 p-4 md:w-72 md:max-h-none md:border-l md:border-t-0 max-h-[42vh]">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                  Preview
-                </span>
-                {outputSize && (
-                  <span className="font-mono text-[10px] text-white/40">
-                    {outputSize.w}×{outputSize.h}
-                  </span>
-                )}
-              </div>
-              <div className="flex min-h-[160px] items-center justify-center rounded-lg border border-white/10 bg-black/50 p-3">
-                {tooLarge ? (
-                  <span className="text-[11px] text-white/50">
-                    Preview unavailable
-                  </span>
-                ) : previewDataUrl ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={previewDataUrl}
-                    alt="Crop preview"
-                    className="max-h-[220px] max-w-full rounded-md object-contain shadow-md"
-                  />
-                ) : (
-                  <span className="text-[11px] text-white/40">
-                    Adjust crop…
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col gap-1.5 text-[11px] text-white/60">
-                <Stat
-                  label="Aspect"
-                  value={
-                    ASPECT_PRESETS.find((p) => p.id === aspectId)?.label ??
-                    "Free"
-                  }
-                />
-                {outputSize && (
-                  <Stat
-                    label="Output"
-                    value={`${outputSize.w} × ${outputSize.h} px`}
-                  />
-                )}
-                <Stat
-                  label="Format"
-                  value={file.type === "image/png" ? "PNG" : "JPEG"}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleUseOriginal}
-                disabled={busy}
-                className="w-full rounded-md border border-white/20 px-3 py-1.5 text-xs text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50 md:mt-auto"
-              >
-                Use original (skip crop)
-              </button>
-            </aside>
-          </div>
-
-          {/* Cropper container — boyutsal classes; theme'in kendisi
-              SDK build'inde emit edilen styles.css ile yüklenir
-              (`@sentroy-co/client-sdk/react/crop/styles.css`). */}
+          {/* Cropper container sizing — paketin kendi style.css'i çoğu
+              görseli sağlar; bizim sadece full-bleed boyutlama. Cropper'ın
+              ana rengini (stencil border + handler accent) `color`
+              property'si üzerinden geçir; root'a beyaz set ettik. */}
           <style>{`
-            .sentroy-cropper {
+            .sentroy-mobile-cropper {
               height: 100%;
               width: 100%;
               background: #000;
-            }
-            .sentroy-cropper-background {
-              background-color: rgba(0, 0, 0, 0.7);
             }
           `}</style>
         </motion.div>
@@ -454,44 +311,7 @@ export function CropDialog({
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span>{label}</span>
-      <span className="font-mono text-white/80">{value}</span>
-    </div>
-  )
-}
-
-function ToolbarIconButton({
-  onClick,
-  title,
-  ariaLabel,
-  children,
-}: {
-  onClick: () => void
-  title: string
-  ariaLabel: string
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      aria-label={ariaLabel}
-      className="inline-flex size-8 items-center justify-center rounded-md text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-    >
-      {children}
-    </button>
-  )
-}
-
-function cls(...arr: Array<string | false | null | undefined>): string {
-  return arr.filter(Boolean).join(" ")
-}
-
-function RotateLeftIcon() {
+function RotateIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -500,67 +320,11 @@ function RotateLeftIcon() {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="size-4"
-      aria-hidden="true"
-    >
-      <path d="M3 12a9 9 0 1 0 3-6.7" />
-      <path d="M3 4v5h5" />
-    </svg>
-  )
-}
-
-function RotateRightIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-4"
+      className="size-5"
       aria-hidden="true"
     >
       <path d="M21 12a9 9 0 1 1-3-6.7" />
       <path d="M21 4v5h-5" />
-    </svg>
-  )
-}
-
-function FlipHorizontalIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-4"
-      aria-hidden="true"
-    >
-      <path d="M12 3v18" />
-      <path d="M16 7l4 5-4 5" />
-      <path d="M8 7l-4 5 4 5" />
-    </svg>
-  )
-}
-
-function FlipVerticalIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-4"
-      aria-hidden="true"
-    >
-      <path d="M3 12h18" />
-      <path d="M7 8l5-4 5 4" />
-      <path d="M7 16l5 4 5-4" />
     </svg>
   )
 }
