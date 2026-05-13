@@ -138,14 +138,26 @@ export function CropDialog({
       previewRafRef.current = null
       const cropper = cropperRef.current
       if (!cropper) return
+      // Önce gerçek crop pixel boyutunu öğren; preview canvas'ını aspect
+      // koruyarak max edge PREVIEW_MAX_DIM'e fit ediyoruz. `getCanvas`
+      // sadece `width` verince paket aspect'i koruyup height'i otomatik
+      // hesaplıyor. `maxWidth/maxHeight` paket API'sinde yok — eski
+      // çağrımız sessiz fail edip canvas üretmiyordu.
+      const state = cropper.getState()
+      const c = state?.coordinates
+      if (!c || c.width === 0 || c.height === 0) return
+      const scale =
+        c.width >= c.height
+          ? PREVIEW_MAX_DIM / c.width
+          : PREVIEW_MAX_DIM / c.height
+      const previewWidth = Math.max(1, Math.round(c.width * scale))
       const canvas = cropper.getCanvas({
-        // Preview canvas — düşük boyut, smooth (output quality değil)
-        maxWidth: PREVIEW_MAX_DIM * 2,
-        maxHeight: PREVIEW_MAX_DIM * 2,
+        width: previewWidth,
+        imageSmoothingEnabled: true,
         imageSmoothingQuality: "medium",
       })
       if (!canvas) return
-      setOutputSize({ w: canvas.width, h: canvas.height })
+      setOutputSize({ w: Math.round(c.width), h: Math.round(c.height) })
       // Data URL — küçük canvas; performant
       try {
         setPreviewDataUrl(canvas.toDataURL("image/jpeg", 0.7))
@@ -263,7 +275,11 @@ export function CropDialog({
               type="button"
               onClick={handleApply}
               disabled={busy || tooLarge}
-              className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+              // Inline color — host app'in Tailwind tema CSS değişkenleri
+              // `text-black` / `bg-white` class'larını override edebiliyor
+              // (Sentroy console gibi). Sabit hex ile kontrast garanti.
+              style={{ backgroundColor: "#fff", color: "#0a0a0a" }}
+              className="rounded-md px-3 py-1.5 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {busy ? "Cropping…" : "Apply"}
             </button>
@@ -272,21 +288,29 @@ export function CropDialog({
           {/* Aspect + rotate toolbar */}
           <div className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-black/30 px-3 py-2">
             <div className="flex flex-1 flex-wrap items-center gap-1">
-              {ASPECT_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setAspectId(p.id)}
-                  className={cls(
-                    "rounded-full px-3 py-1 text-xs transition-colors",
-                    aspectId === p.id
-                      ? "bg-white text-black"
-                      : "text-white/60 hover:bg-white/10 hover:text-white",
-                  )}
-                >
-                  {p.label}
-                </button>
-              ))}
+              {ASPECT_PRESETS.map((p) => {
+                const active = aspectId === p.id
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setAspectId(p.id)}
+                    style={
+                      active
+                        ? { backgroundColor: "#fff", color: "#0a0a0a" }
+                        : undefined
+                    }
+                    className={cls(
+                      "rounded-full px-3 py-1 text-xs transition-colors",
+                      active
+                        ? "font-medium"
+                        : "text-white/60 hover:bg-white/10 hover:text-white",
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                )
+              })}
             </div>
             <div className="flex items-center gap-1">
               <ToolbarIconButton
@@ -324,7 +348,7 @@ export function CropDialog({
           {/* Main: cropper + side panel */}
           <div className="flex flex-1 min-h-0 flex-col md:flex-row">
             {/* Cropper stage */}
-            <div className="relative flex-1 bg-black min-h-[240px]">
+            <div className="relative flex-1 min-h-[240px] min-w-0 bg-black">
               {tooLarge ? (
                 <div className="flex h-full w-full items-center justify-center p-6 text-center text-sm text-white/70">
                   Image too large to crop in browser. Upload as-is or resize
@@ -350,8 +374,9 @@ export function CropDialog({
               )}
             </div>
 
-            {/* Side panel: live preview + readout */}
-            <aside className="flex w-full shrink-0 flex-col gap-4 border-t border-white/10 bg-black/30 p-4 md:w-72 md:border-l md:border-t-0">
+            {/* Side panel: live preview + readout. Mobile'da max-h ile
+                clamp + overflow-y-auto — uzun bilgilerle taşmasın. */}
+            <aside className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-white/10 bg-black/30 p-4 md:w-72 md:max-h-none md:border-l md:border-t-0 max-h-[42vh]">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
                   Preview
@@ -372,7 +397,7 @@ export function CropDialog({
                   <img
                     src={previewDataUrl}
                     alt="Crop preview"
-                    className="max-h-[240px] max-w-full rounded-md object-contain shadow-md"
+                    className="max-h-[220px] max-w-full rounded-md object-contain shadow-md"
                   />
                 ) : (
                   <span className="text-[11px] text-white/40">
@@ -403,16 +428,16 @@ export function CropDialog({
                 type="button"
                 onClick={handleUseOriginal}
                 disabled={busy}
-                className="mt-auto w-full rounded-md border border-white/20 px-3 py-1.5 text-xs text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+                className="w-full rounded-md border border-white/20 px-3 py-1.5 text-xs text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50 md:mt-auto"
               >
                 Use original (skip crop)
               </button>
             </aside>
           </div>
 
-          {/* Local cropper styles — paket default'unu Sentroy paletine
-              align ediyoruz. Stencil border ve grid çizgisini ince-keskin
-              tutuyoruz (iOS Photos benzeri). */}
+          {/* Cropper container — boyutsal classes; theme'in kendisi
+              SDK build'inde emit edilen styles.css ile yüklenir
+              (`@sentroy-co/client-sdk/react/crop/styles.css`). */}
           <style>{`
             .sentroy-cropper {
               height: 100%;
@@ -421,29 +446,6 @@ export function CropDialog({
             }
             .sentroy-cropper-background {
               background-color: rgba(0, 0, 0, 0.7);
-            }
-            .sentroy-cropper .advanced-cropper-stencil-overlay {
-              background: rgba(0, 0, 0, 0.55);
-            }
-            .sentroy-cropper .advanced-cropper-rectangle-stencil__draggable-area {
-              border: 1px solid rgba(255, 255, 255, 0.95);
-            }
-            .sentroy-cropper .advanced-cropper-line-wrapper {
-              background: rgba(255, 255, 255, 0.95);
-            }
-            .sentroy-cropper .advanced-cropper-handler-wrapper--west-north,
-            .sentroy-cropper .advanced-cropper-handler-wrapper--north-east,
-            .sentroy-cropper .advanced-cropper-handler-wrapper--east-south,
-            .sentroy-cropper .advanced-cropper-handler-wrapper--south-west {
-              width: 22px;
-              height: 22px;
-            }
-            .sentroy-cropper .advanced-cropper-handler-wrapper__draggable {
-              background: #fff;
-              border: 2px solid #000;
-              width: 12px;
-              height: 12px;
-              border-radius: 2px;
             }
           `}</style>
         </motion.div>
