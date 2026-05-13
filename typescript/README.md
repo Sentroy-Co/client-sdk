@@ -78,6 +78,58 @@ console.log(media.url) // signed URL, served from the CDN
 
 That's the smallest useful surface. Every other resource (`domains`, `mailboxes`, `templates`, `inbox`, `audience`, `webhooks`, `suppressions`, `logs`, `buckets`, `media`) follows the same `sentroy.<resource>.<verb>(...)` shape with full TypeScript types.
 
+## React: CropDialog
+
+A full-screen image crop dialog built on [`react-advanced-cropper`](https://advanced-cropper.github.io/react-advanced-cropper/). Lazy subpath — only imported when you reference it.
+
+**1. Add the stylesheet once** (root layout / `_app` / global CSS entry — anywhere it loads on every page that may open the dialog):
+
+```ts
+import "@sentroy-co/client-sdk/react/crop/styles.css"
+```
+
+The bundled stylesheet ships the cropper's baseline geometry + a packaged `compact` theme + a few opinionated overrides. You can browse all upstream theme variants at [advanced-cropper themes](https://advanced-cropper.github.io/react-advanced-cropper/docs/guides/themes); if you want a different look, swap our stylesheet for the package's `react-advanced-cropper/dist/style.css` plus your theme of choice — but order matters (baseline first, then theme).
+
+**2. Open the dialog with a `File`:**
+
+```tsx
+"use client"
+import { useState } from "react"
+import dynamic from "next/dynamic"
+
+const CropDialog = dynamic(
+  () => import("@sentroy-co/client-sdk/react/crop").then((m) => m.CropDialog),
+  { ssr: false },
+)
+
+export function UploadButton() {
+  const [file, setFile] = useState<File | null>(null)
+  return (
+    <>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+      />
+      {file && (
+        <CropDialog
+          open
+          file={file}
+          defaultAspect="1:1"
+          onClose={(out) => {
+            setFile(null)
+            if (out) uploadCroppedFile(out) // Apply → cropped File
+            // out === null → Cancel; out === file → Use original
+          }}
+        />
+      )}
+    </>
+  )
+}
+```
+
+The dialog returns a `File` (cropped or original), `null` on cancel. Aspect presets, rotate (`R` / `Shift+R`), flip, zoom and a live preview are built in.
+
 ## Env Vault
 
 Manage your env vars in the dashboard at [vault.sentroy.com](https://vault.sentroy.com), bootstrap your deploy with one token, and read values via a typed helper — no rebuild on change.
