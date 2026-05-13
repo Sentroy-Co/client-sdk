@@ -323,7 +323,10 @@ export function MediaManager(props: MediaManagerProps) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-xl border bg-background text-foreground",
+        // `relative` — drop overlay (`absolute inset-0`) için positioning
+        // context. Eskiden eksikti, drag-and-drop görsel feedback hiç
+        // görünmüyordu.
+        "relative flex flex-col gap-3 rounded-xl border bg-background text-foreground",
         className,
         cls.root,
       )}
@@ -414,11 +417,11 @@ export function MediaManager(props: MediaManagerProps) {
       </div>
 
       {/* Grid + details */}
-      <div className="flex min-h-[280px] flex-1">
+      <div className="flex min-h-[280px] flex-1 min-h-0">
         <div className="flex-1 overflow-y-auto p-3">
           {loading && (
-            <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {Array.from({ length: 8 }).map((_, i) => (
+            <div className="grid auto-rows-max gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {Array.from({ length: 16 }).map((_, i) => (
                 <div
                   key={i}
                   className="h-28 animate-pulse rounded-md bg-muted/50"
@@ -432,20 +435,41 @@ export function MediaManager(props: MediaManagerProps) {
             </div>
           )}
           {!loading && !error && visibleItems.length === 0 && (
+            // Empty state — `h-full justify-center` dialog'un ortasında
+            // "yükleme barı" hissi veriyordu. Top-align + büyük drop
+            // zone callout daha doğal: "buraya sürükle veya seç".
             <div
               className={cn(
-                "flex h-full flex-col items-center justify-center gap-2 py-8 text-center text-sm text-muted-foreground",
+                "flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border/60 px-6 py-12 text-center text-sm text-muted-foreground",
                 cls.empty,
               )}
             >
-              <span>No files match.</span>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-xs underline"
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="size-10 text-muted-foreground/40"
+                aria-hidden="true"
               >
-                Upload one
-              </button>
+                <path d="M12 4v12m0 0l-4-4m4 4l4-4" />
+                <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+              </svg>
+              <div className="flex flex-col gap-1">
+                <span className="text-foreground font-medium">
+                  Drop files here
+                </span>
+                <span className="text-xs">
+                  or{" "}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="font-medium text-foreground underline-offset-4 hover:underline"
+                  >
+                    browse from your computer
+                  </button>
+                </span>
+              </div>
             </div>
           )}
           {!loading && !error && visibleItems.length > 0 && (
