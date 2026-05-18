@@ -1,34 +1,220 @@
 import { AuthHttp } from "../http"
-import type { SentroyAuthUser } from "../types"
+import type {
+  SentroyAuthUser,
+  SignupResponse,
+  LoginResponse,
+  LoginOutcome,
+  AuthTokensResponse,
+  MfaChallengeResponse,
+} from "../types"
 
 /**
  * Server-side Sentroy Auth admin SDK. **Node only — apiKey browser'a
- * koymayın**; bu sınıf Project'in master `aps_` token'ını taşır ve
- * Sentroy üzerindeki user pool'a yetki vermez.
+ * koymayın**; bu sınıf Project'in master `aps_` token'ını taşır.
  *
- * Tipik kullanım: backend, kendi `/api/auth/...` proxy'sinde RP-spesifik
- * authorization yapar, sonra `admin.users.get(...)` ile Sentroy'dan
- * end-user'ı çeker. JWT verify de bu SDK üzerinden — tüm akış stateless.
+ * Tüm public auth endpoint'lerini apiKey'le proxy eder ve JWT'yi local
+ * verify edebilir (JWKS cache + RSA Subtle). RP backend tipik akış:
+ *
+ *   const admin = new SentroyAuthAdmin({ projectSlug, apiKey })
+ *   const out = await admin.users.signIn({ email, password })
+ *   if (out.kind === "tokens") setCookie(out.data.accessToken, ...)
+ *   else // MFA flow
+ *
+ *   // Mid-request: verify
+ *   const claims = await admin.verifyIdToken(req.cookies.accessToken)
+ *
+ * Token persistence yok — server-side request-scoped; caller cookie /
+ * session / DB nereye isterse oraya yazar.
  */
 
 export interface SentroyAuthAdminOptions {
   authBaseUrl?: string
   projectSlug: string
   apiKey: string
+  /** JWKS cache TTL (saniye). Default 3600 (1 saat) — JWT rotation
+   *  grace period'una uyumlu; daha agresif rotation yapan project'ler
+   *  daha düşük set edebilir. */
+  jwksCacheTtl?: number
+}
+
+interface CachedJwks {
+  keys: Record<string, unknown>[]
+  expiresAt: number
 }
 
 export class SentroyAuthAdmin {
   private readonly http: AuthHttp
-  private cachedJwks: { keys: Record<string, unknown>[] } | null = null
+  private readonly jwksCacheTtl: number
+  private cachedJwks: CachedJwks | null = null
 
   constructor(opts: SentroyAuthAdminOptions) {
     this.http = new AuthHttp(opts)
+    this.jwksCacheTtl = opts.jwksCacheTtl ?? 3600
+  }
+
+  get projectSlug(): string {
+    return this.http.projectSlug
+  }
+
+  get baseUrl(): string {
+    return this.http.baseUrl
   }
 
   // ─── User pool admin ──────────────────────────────────────────────────
 
   users = {
-    list: (opts: {
+    /**
+     * Server-side signup proxy. apiKey backend'de — browser'a sızmaz.
+     * Email verification project config'ine bağlı: required ise
+     * `emailVerificationRequired: true` döner, tokens undefined.
+     */
+    create: (input: {
+      email: string
+      password: string
+      displayName?: string
+      metadata?: Record<string, unknown>
+    }): Promise<SignupResponse> =>
+      this.http.request<SignupResponse>("/signup", {
+        method: "POST",
+        json: input,
+      }),
+
+    /**
+     * Server-side login proxy. MFA-aware: tokens VEYA MFA challenge.
+     * RP backend `out.kind === "mfa"` ise kullanıcıdan code alıp
+     * `users.verifyMfa(...)` çağırır.
+     */
+    signIn: async (input: {
+      email: string
+      password: string
+      rememberMe?: boolean
+    }): Promise<LoginOutcome> => {
+      const res = await this.http.request<
+        LoginResponse | MfaChallengeResponse
+      >("/login", { method: "POST", json: input })
+      if ("mfaRequired" in res && res.mfaRequired) {
+        return { kind: "mfa", data: res }
+      }
+      return { kind: "tokens", data: res as LoginResponse }
+    },
+
+    /** MFA verify ikinci adımı — `signIn` kind:"mfa" döndüyse. */
+    verifyMfa: (input: {
+      mfaToken: string
+      code?: string
+      recoveryCode?: string
+    }): Promise<LoginResponse> =>
+      this.http.request<LoginResponse>("/login/mfa/verify", {
+        method: "POST",
+        json: input,
+      }),
+
+    /** Refresh access token (rotation). Yeni refresh + access döner. */
+    refresh: (refreshToken: string): Promise<AuthTokensResponse> =>
+      this.http.request<AuthTokensResponse>("/refresh", {
+        method: "POST",
+        json: { refreshToken },
+      }),
+
+    /** Logout (refresh token revoke). */
+    signOut: (refreshToken: string): Promise<void> =>
+      this.http
+        .request<void>("/logout", {
+          method: "POST",
+          json: { refreshToken },
+        })
+        .then(() => undefined),
+
+    /** Verify email — link'ten gelen token. */
+    verifyEmail: (token: string): Promise<{ user: SentroyAuthUser }> =>
+      this.http.request<{ user: SentroyAuthUser }>("/verify-email", {
+        method: "POST",
+        json: { token },
+      }),
+
+    /** Password reset mail tetikle. */
+    requestPasswordReset: (email: string): Promise<void> =>
+      this.http
+        .request<void>("/password-reset/request", {
+          method: "POST",
+          json: { email },
+        })
+        .then(() => undefined),
+
+    /** Reset token + yeni şifre ile finalize. */
+    confirmPasswordReset: (input: {
+      token: string
+      newPassword: string
+    }): Promise<{ user: SentroyAuthUser }> =>
+      this.http.request<{ user: SentroyAuthUser }>("/password-reset/confirm", {
+        method: "POST",
+        json: input,
+      }),
+
+    /** Magic-link mail tetikle. */
+    sendMagicLink: (input: {
+      email: string
+      redirectUri?: string
+    }): Promise<void> =>
+      this.http
+        .request<void>("/magic-link/request", {
+          method: "POST",
+          json: input,
+        })
+        .then(() => undefined),
+
+    /** Magic-link token consume → login. */
+    consumeMagicLink: (token: string): Promise<LoginResponse> =>
+      this.http.request<LoginResponse>("/magic-link/consume", {
+        method: "POST",
+        json: { token },
+      }),
+
+    /** Davet token'ı ile yeni hesap + login. */
+    acceptInvitation: (input: {
+      token: string
+      password: string
+      displayName?: string
+    }): Promise<LoginResponse> =>
+      this.http.request<LoginResponse>("/invitation/accept", {
+        method: "POST",
+        json: input,
+      }),
+
+    /**
+     * Access token ile remote /me — JWT'ye bağımlı kalmadan canlı
+     * profile çek. Token expire ise SentroyAuthError fırlatır.
+     */
+    getUser: (accessToken: string): Promise<SentroyAuthUser> =>
+      this.http.request<SentroyAuthUser>("/me", {
+        method: "GET",
+        bearer: accessToken,
+      }),
+
+    /**
+     * Token bazlı userinfo (OIDC tarzı). `/userinfo` claims response —
+     * SentroyAuthUser shape'inden daha minimal olabilir.
+     */
+    getUserinfo: (
+      accessToken: string,
+    ): Promise<{
+      sub: string
+      email?: string
+      email_verified?: boolean
+      name?: string
+      picture?: string
+    }> =>
+      this.http.request("/userinfo", {
+        method: "GET",
+        bearer: accessToken,
+      }),
+
+    /**
+     * Admin list (paginated). **Şu an public API yok** — dashboard
+     * cookie-auth `/api/companies/[slug]/auth-projects/[id]/users`
+     * kullan. v2'de stk_ token'lı admin endpoint açılacak.
+     */
+    list: (_opts: {
       limit?: number
       skip?: number
       emailVerified?: boolean
@@ -39,18 +225,19 @@ export class SentroyAuthAdmin {
       throw new Error(
         "admin.users.list requires session-authenticated admin API; use dashboard /api/companies/[slug]/auth-projects/[id]/users instead. (v2 admin SDK will proxy this with stk_ tokens.)",
       )
-      // NOTE Phase 5+: SDK admin endpoint'leri public path'lere taşınmadı;
-      // şu an `/api/companies/...` cookie-auth ile. v2'de `/api/v1/admin/...`
-      // RP token'ı ile authenticate eden ayrı public admin layer eklenir.
     },
   }
 
   // ─── ID token verification ─────────────────────────────────────────────
 
   /**
-   * Local verify — JWKS cache'lenir (5dk TTL), JWT signature kontrolü
-   * RS256 ile RP backend'inde stateless yapılır. `iss`/`aud` claim
-   * eşleşmesi de kontrol edilir.
+   * Local verify — JWKS cache'lenir (default 1h TTL, opts ile değişir),
+   * JWT signature RS256 ile WebCrypto Subtle üzerinden verify edilir.
+   * `iss`/`aud` claim eşleşmesi de kontrol edilir.
+   *
+   * Throw'lar: malformed JWT, expired, iss/aud mismatch, key not found,
+   * signature mismatch. Tipik kullanım `try/catch` içinde — fail ise
+   * 401 dön.
    */
   async verifyIdToken(token: string): Promise<{
     sub: string
@@ -62,6 +249,7 @@ export class SentroyAuthAdmin {
     aud: string
     iat: number
     exp: number
+    [claim: string]: unknown
   }> {
     const parts = token.split(".")
     if (parts.length !== 3) {
@@ -83,12 +271,14 @@ export class SentroyAuthAdmin {
     if (typeof claims.exp !== "number" || claims.exp * 1000 < Date.now()) {
       throw new Error("Token expired.")
     }
-    // iss + aud check
     const expectedIssSuffix = `/p/${this.http.projectSlug}`
-    if (typeof claims.iss !== "string" || !claims.iss.endsWith(expectedIssSuffix)) {
+    if (
+      typeof claims.iss !== "string" ||
+      !claims.iss.endsWith(expectedIssSuffix)
+    ) {
       throw new Error("Issuer mismatch.")
     }
-    // aud == project apiKeyPrefix (12 chars). API key first 12 = aud check.
+    // aud == project apiKeyPrefix (first 12 chars of api key)
     if (
       typeof claims.aud !== "string" ||
       !this.http.apiKey?.startsWith(claims.aud)
@@ -111,17 +301,22 @@ export class SentroyAuthAdmin {
     return claims as never
   }
 
+  /** JWKS cache'ini elle temizle (key rotation sonrası). */
+  invalidateJwksCache(): void {
+    this.cachedJwks = null
+  }
+
   private async fetchJwks(): Promise<{ keys: Record<string, unknown>[] }> {
-    if (this.cachedJwks) return this.cachedJwks
-    const jwks = await this.http.request<{ keys: Record<string, unknown>[] }>(
-      "/jwks.json",
-      { method: "GET" },
-    )
-    this.cachedJwks = jwks
-    // 5dk cache — basit setTimeout invalidation
-    setTimeout(() => {
-      this.cachedJwks = null
-    }, 5 * 60 * 1000)
+    if (this.cachedJwks && this.cachedJwks.expiresAt > Date.now()) {
+      return { keys: this.cachedJwks.keys }
+    }
+    const jwks = await this.http.request<{
+      keys: Record<string, unknown>[]
+    }>("/jwks.json", { method: "GET" })
+    this.cachedJwks = {
+      keys: jwks.keys,
+      expiresAt: Date.now() + this.jwksCacheTtl * 1000,
+    }
     return jwks
   }
 }
@@ -167,7 +362,9 @@ async function verifyRsaSignature(input: {
   const subtle =
     typeof crypto !== "undefined" && crypto.subtle ? crypto.subtle : null
   if (!subtle) {
-    throw new Error("Web Crypto unavailable — upgrade Node >= 18 or run in a browser.")
+    throw new Error(
+      "Web Crypto unavailable — upgrade Node >= 18 or run in a browser.",
+    )
   }
   const key = await subtle.importKey(
     "jwk",
@@ -176,9 +373,8 @@ async function verifyRsaSignature(input: {
     false,
     ["verify"],
   )
-  // Web Crypto types want ArrayBuffer-backed BufferSource. TypeScript
-  // can't prove Uint8Array isn't SharedArrayBuffer-backed (DOM lib edge);
-  // bytes are created fresh from base64 decode so ArrayBuffer-safe — cast.
+  // Web Crypto types want ArrayBuffer-backed BufferSource. Bytes are
+  // created fresh from base64 decode so they are ArrayBuffer-safe.
   const sigBytes = base64UrlToBytes(input.sigB64) as Uint8Array
   const dataBytes = new TextEncoder().encode(input.data) as Uint8Array
   const ok = await subtle.verify(

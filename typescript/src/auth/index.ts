@@ -23,4 +23,13 @@ export {
   type SignupResponse,
   type LoginResponse,
   type AuthTokensResponse,
+  type LoginOutcome,
+  type MfaChallengeResponse,
+  type SessionSummary,
+  type ActivityEntry,
+  type MfaStatus,
+  type MfaEnrollResponse,
+  type MfaVerifyEnrollmentResponse,
+  type PasskeySummary,
+  type SocialProvider,
 } from "./types"

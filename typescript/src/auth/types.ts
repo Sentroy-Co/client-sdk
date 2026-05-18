@@ -58,3 +58,69 @@ export class SentroyAuthError extends Error {
     this.status = status
   }
 }
+
+/**
+ * Login response when MFA is enrolled — first step returns mfaRequired+
+ * mfaToken; second step `verifyMfa(mfaToken, code)` issues final tokens.
+ */
+export interface MfaChallengeResponse {
+  mfaRequired: true
+  mfaToken: string
+  factorType: "totp"
+}
+
+/** Discriminated union — Login may resolve to tokens OR MFA challenge. */
+export type LoginOutcome =
+  | { kind: "tokens"; data: LoginResponse }
+  | { kind: "mfa"; data: MfaChallengeResponse }
+
+export interface SessionSummary {
+  id: string
+  refreshTokenPrefix: string
+  userAgent: string | null
+  ip: string | null
+  expiresAt: string
+  createdAt: string
+}
+
+export interface ActivityEntry {
+  id: string
+  action: string
+  ipAddress: string | null
+  createdAt: string
+  details: Record<string, unknown> | null
+}
+
+export interface MfaStatus {
+  enrolled: boolean
+  factorType?: "totp"
+  verifiedAt?: string | null
+  recoveryCodesRemaining?: number
+}
+
+export interface MfaEnrollResponse {
+  secret: string
+  otpauthUri: string
+}
+
+export interface MfaVerifyEnrollmentResponse {
+  enrolled: true
+  recoveryCodes: string[]
+}
+
+export interface PasskeySummary {
+  id: string
+  credentialIdPrefix: string
+  deviceName: string | null
+  transports: string[]
+  lastUsedAt: string | null
+  createdAt: string
+}
+
+export type SocialProvider =
+  | "google"
+  | "github"
+  | "facebook"
+  | "microsoft"
+  | "twitter"
+  | "apple"
