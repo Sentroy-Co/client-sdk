@@ -200,6 +200,35 @@ npx sentroy ai install
 
 The vault token's (project, environment) scope is implicit. Mail/storage commands need `SENTROY_API_KEY` (`stk_<48-hex>`) plus a company slug (env var or `--company-slug`). Every list/get supports `--output=json` for scripting. Full command list and recipes: [docs.sentroy.com/cli](https://docs.sentroy.com/cli).
 
+### React Native / Expo
+
+The SDK runs in React Native / Expo with one extra subpath for platform-specific helpers: [`@sentroy-co/client-sdk/auth/react-native`](https://docs.sentroy.com/auth-projects#react-native).
+
+```ts
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import * as WebBrowser from "expo-web-browser"
+import { SentroyAuth } from "@sentroy-co/client-sdk/auth"
+import {
+  createAsyncStorageAdapter,
+  openSocialAuthSession,
+} from "@sentroy-co/client-sdk/auth/react-native"
+
+export const auth = new SentroyAuth({
+  projectSlug: "acme",
+  apiKey: process.env.EXPO_PUBLIC_SENTROY_AUTH_KEY!,
+  storage: createAsyncStorageAdapter(AsyncStorage, { projectSlug: "acme" }),
+})
+
+// Social login via the system browser, with a deep-link callback.
+const tokens = await openSocialAuthSession(WebBrowser, {
+  authorizeUrl: auth.socialAuthorizeUrl("google", { redirectUri: "myapp://auth/callback" }),
+  redirectUri: "myapp://auth/callback",
+})
+if (tokens) await auth.setSession(tokens)
+```
+
+Notes: passkeys are web-only, `SentroyAuthAdmin` is server-only (do not import in Expo bundles), and `media.upload` from `expo-document-picker` accepts `{uri, name, type}` as `body`. Full guide: [docs.sentroy.com/auth-projects#react-native](https://docs.sentroy.com/auth-projects#react-native).
+
 ### AI Skill
 
 Sentroy ships a canonical [`SKILL.md`](https://docs.sentroy.com/skill.md) (Anthropic Skills format) so AI coding agents (Claude Code, Cursor, Windsurf, OpenAI Codex via AGENTS.md) understand the auth model, endpoints, and gotchas without trial-and-error.

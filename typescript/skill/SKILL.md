@@ -1,6 +1,6 @@
 ---
 name: sentroy
-version: 2.14.0
+version: 2.15.0
 description: Use when working with the Sentroy platform SDK / REST API for mail (send, templates, domains, mailboxes, inbox, suppressions, logs), storage (buckets, media, multipart upload, CDN), env-vault (config / secrets), or auth-as-a-service (Auth Projects, signup/login/JWT). Covers auth modes (stk_ access token, aps_ Auth Project key), base URLs, common task recipes, error codes, gotchas, and the `sentroy` CLI.
 ---
 
@@ -64,6 +64,41 @@ const sentroy = new Sentroy({
 const domains = await sentroy.domains.list();
 console.log(domains);
 ```
+
+### React Native / Expo
+
+The auth SDK works in Expo/React Native with two small additions:
+
+1. Plug in async storage (sessions persist across cold-starts):
+
+```ts
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { SentroyAuth } from "@sentroy-co/client-sdk/auth"
+import { createAsyncStorageAdapter } from "@sentroy-co/client-sdk/auth/react-native"
+
+export const auth = new SentroyAuth({
+  projectSlug: "acme",
+  apiKey: process.env.EXPO_PUBLIC_SENTROY_AUTH_KEY!,
+  storage: createAsyncStorageAdapter(AsyncStorage, { projectSlug: "acme" }),
+})
+```
+
+2. Social login via expo-web-browser:
+
+```ts
+import * as WebBrowser from "expo-web-browser"
+import { openSocialAuthSession } from "@sentroy-co/client-sdk/auth/react-native"
+
+const tokens = await openSocialAuthSession(WebBrowser, {
+  authorizeUrl: auth.socialAuthorizeUrl("google", {
+    redirectUri: "myapp://auth/callback",
+  }),
+  redirectUri: "myapp://auth/callback",
+})
+if (tokens) await auth.setSession(tokens)
+```
+
+**Gotchas:** `SentroyAuthAdmin` is server-only (do not import in Expo bundles). Passkeys are web-only. `media.upload` from Expo `DocumentPicker` needs `{uri, name, type}` as `body`. Old RN (<0.71) needs an `atob` polyfill.
 
 ### Python
 
@@ -539,4 +574,4 @@ sentroy ai install [--claude] [--cursor] [--windsurf] [--agents] [--all] [--upgr
 - `https://docs.sentroy.com/auth-projects` — Auth-as-a-Service docs
 - `https://raw.githubusercontent.com/Sentroy-Co/client-sdk/main/typescript/AGENTS.md` — the full 900-line TS reference (deep dive)
 
-<!-- skill-version: 2.14.0 -->
+<!-- skill-version: 2.15.0 -->

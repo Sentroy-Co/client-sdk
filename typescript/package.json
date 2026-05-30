@@ -1,6 +1,6 @@
 {
   "name": "@sentroy-co/client-sdk",
-  "version": "2.14.0",
+  "version": "2.15.0",
   "description": "TypeScript SDK + CLI for the Sentroy platform — mail, storage, env vault + React components.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -53,6 +53,11 @@
       "types": "./dist/auth/react/index.d.ts",
       "import": "./dist/auth/react/index.js",
       "require": "./dist/auth/react/index.js"
+    },
+    "./auth/react-native": {
+      "types": "./dist/auth/react-native/index.d.ts",
+      "import": "./dist/auth/react-native/index.js",
+      "require": "./dist/auth/react-native/index.js"
     }
   },
   "files": [

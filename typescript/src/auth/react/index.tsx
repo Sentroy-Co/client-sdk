@@ -91,7 +91,7 @@ export function SentroyAuthProvider({
   // Social login redirect handler — fragment varsa otomatik consume
   useEffect(() => {
     if (!autoConsumeFragment) return
-    if (typeof window === "undefined") return
+    if (typeof window === "undefined" || !window.location) return
     if (!window.location.hash.includes("access_token=")) return
     auth.consumeRedirectFragment().catch(() => {
       // Fragment varsa ama consume fail ise sessizce yut — caller

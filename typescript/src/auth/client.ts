@@ -100,6 +100,13 @@ async function loadSimpleWebAuthnBrowser(): Promise<{
   }
 }
 
+/**
+ * Browser localStorage-backed adapter. In React Native, `window.localStorage`
+ * is undefined, so this falls back to an in-memory adapter (session lost on
+ * app restart). For RN persistence, pass a custom adapter via
+ * `storage: createAsyncStorageAdapter(...)` or `createSecureStoreAdapter(...)`
+ * imported from `@sentroy-co/client-sdk/auth/react-native`.
+ */
 function localStorageAdapter(projectSlug: string): AuthStorageAdapter {
   if (typeof window === "undefined" || !window.localStorage) {
     return memoryStorageAdapter()
@@ -403,7 +410,7 @@ export class SentroyAuth {
    * çağırın. Başarılıysa user döner, fail'da null.
    */
   async consumeRedirectFragment(): Promise<SentroyAuthUser | null> {
-    if (typeof window === "undefined") return null
+    if (typeof window === "undefined" || !window.location) return null
     const hash = window.location.hash.replace(/^#/, "")
     if (!hash) return null
     const params = new URLSearchParams(hash)
