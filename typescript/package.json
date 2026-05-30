@@ -1,6 +1,6 @@
 {
   "name": "@sentroy-co/client-sdk",
-  "version": "2.13.9",
+  "version": "2.14.0",
   "description": "TypeScript SDK + CLI for the Sentroy platform — mail, storage, env vault + React components.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -59,7 +59,9 @@
     "dist",
     "src",
     "bin",
-    "AGENTS.md"
+    "skill",
+    "AGENTS.md",
+    "SKILL.md"
   ],
   "scripts": {
     "build": "tsc && node scripts/build-styles.mjs",

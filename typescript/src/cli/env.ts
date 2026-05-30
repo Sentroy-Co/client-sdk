@@ -283,6 +283,7 @@ export async function cmdPull(args: string[]): Promise<void> {
   const { positional, flags } = parseFlags(args)
   const file = positional[0] ?? DEFAULT_FILE
   const force = !!flags.force
+  const publicOnly = !!flags["public-only"]
   const shared = resolveSharedOpts(flags)
 
   const target = path.resolve(process.cwd(), file)
@@ -291,7 +292,12 @@ export async function cmdPull(args: string[]): Promise<void> {
   }
 
   info(`fetching from ${shared.baseUrl}…`)
-  const remote = await http<FetchResponse>(shared, "/api/env-vault/fetch")
+  // Browser-safe subset (public-only) hits a dedicated endpoint that
+  // strips secrets — useful for `.env.public` files committed to repos.
+  const endpoint = publicOnly
+    ? "/api/env-vault/public"
+    : "/api/env-vault/fetch"
+  const remote = await http<FetchResponse>(shared, endpoint)
   const entries: DotenvEntry[] = remote.variables.map((v) => ({
     key: v.key,
     value: v.value,
@@ -301,7 +307,9 @@ export async function cmdPull(args: string[]): Promise<void> {
   const text = serializeDotenv(entries)
   fs.writeFileSync(target, text, "utf8")
   ok(
-    `wrote ${entries.length} variable(s) to ${file} (${remote.project}/${remote.environment})`,
+    `wrote ${entries.length} variable(s) to ${file} (${remote.project}/${remote.environment})${
+      publicOnly ? " [public-only]" : ""
+    }`,
   )
 }
 

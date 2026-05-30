@@ -179,17 +179,36 @@ Configure the receiver URL in the vault dashboard under the project's **Webhooks
 
 ### CLI
 
-The package ships a `sentroy` CLI for syncing local `.env` files to the vault — useful for build pipelines and onboarding.
+The package ships a `sentroy` CLI with four command groups: `env`, `mail`, `storage`, `ai`. Full reference at [docs.sentroy.com/cli](https://docs.sentroy.com/cli).
 
 ```bash
-# Use SENTROY_ENV_API_KEY (or pass --token=stk_env_...)
+# Env Vault sync (SENTROY_ENV_API_KEY)
 npx sentroy env push .env.production --delete-missing
-npx sentroy env diff .env.production
 npx sentroy env pull .env.staging --force
-npx sentroy env list --values --public-only
+
+# Mail / Storage queries (SENTROY_API_KEY + SENTROY_COMPANY_SLUG)
+npx sentroy mail templates list
+npx sentroy mail logs list --status=bounced --days=7
+npx sentroy storage buckets list
+npx sentroy storage media list <bucket-slug> --type=image
+npx sentroy mail templates list --output=json | jq '.[].name'
+
+# Install the Sentroy AI Skill into your project (Claude, Cursor, Windsurf,
+# AGENTS.md). Lets AI agents use Sentroy without trial-and-error.
+npx sentroy ai install
 ```
 
-The token's (project, environment) scope is implicit. `--delete-missing` makes the push a full sync — keys not in the local file are removed from the vault. The token must have `write` permission for `push`; everything else only needs `read`.
+The vault token's (project, environment) scope is implicit. Mail/storage commands need `SENTROY_API_KEY` (`stk_<48-hex>`) plus a company slug (env var or `--company-slug`). Every list/get supports `--output=json` for scripting. Full command list and recipes: [docs.sentroy.com/cli](https://docs.sentroy.com/cli).
+
+### AI Skill
+
+Sentroy ships a canonical [`SKILL.md`](https://docs.sentroy.com/skill.md) (Anthropic Skills format) so AI coding agents (Claude Code, Cursor, Windsurf, OpenAI Codex via AGENTS.md) understand the auth model, endpoints, and gotchas without trial-and-error.
+
+```bash
+npx sentroy ai install        # autodetects target tools and installs everywhere
+```
+
+Targets: `.claude/skills/sentroy/SKILL.md`, `.cursor/rules/sentroy.mdc`, `.windsurfrules`, and `AGENTS.md` (sentinel-block merged). See [docs.sentroy.com/ai-skills](https://docs.sentroy.com/ai-skills) for the full install guide.
 
 ## Self-hosted vs hosted
 
