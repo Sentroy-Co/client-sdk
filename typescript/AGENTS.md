@@ -83,6 +83,99 @@ Templates support multiple languages via `LocalizedString`. A field can be a pla
 
 Use the `variables` array to know which placeholders (`{{name}}`, `{{company}}`) the template expects.
 
+#### Creating a template
+
+`name`, `subject`, and `mjmlBody` are each a `LocalizedString` — a plain
+string or a `{ tr, en, ... }` map. `domainId` is **required** and must be
+the id of a verified sending domain.
+
+```ts
+// Create — localized name/subject/mjmlBody
+const template = await sentroy.templates.create({
+  name: { en: "Welcome Email", tr: "Hosgeldin E-postasi" },
+  subject: { en: "Welcome, {{name}}!", tr: "Hosgeldin, {{name}}!" },
+  mjmlBody: {
+    en: "<mjml><mj-body><mj-section><mj-column><mj-text>Hi {name}</mj-text></mj-column></mj-section></mj-body></mjml>",
+    tr: "<mjml><mj-body><mj-section><mj-column><mj-text>Merhaba {name}</mj-text></mj-column></mj-section></mj-body></mjml>",
+  },
+  domainId: "domain-id",
+})
+
+// Update — partial; pass at least one of name / subject / mjmlBody
+await sentroy.templates.update(template.id, {
+  subject: { en: "Welcome aboard, {{name}}!", tr: "Aramiza hos geldin, {{name}}!" },
+})
+
+// Delete
+await sentroy.templates.delete(template.id)
+```
+
+There is **no** `variables` input — you never declare placeholders. The
+platform auto-extracts the variable list from the body (and subject) and
+returns it on the resulting `Template` as `variables: string[]`.
+
+Raw HTTP (platform gateway; `Bearer stk_...` token, permission
+`templates.manage`). The SDK adds the gateway prefix for you, so SDK
+paths are just `/templates` — the full REST paths are:
+
+```bash
+# Create → 201 Template
+curl -X POST "https://sentroy.com/api/mail/companies/my-company/templates" \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": {"en": "Welcome Email", "tr": "Hosgeldin E-postasi"},
+    "subject": {"en": "Welcome, {{name}}!", "tr": "Hosgeldin, {{name}}!"},
+    "mjmlBody": {"en": "<mjml>...</mjml>", "tr": "<mjml>...</mjml>"},
+    "domainId": "domain-id"
+  }'
+
+# Update → 200 Template (partial body, at least one field)
+curl -X PATCH "https://sentroy.com/api/mail/companies/my-company/templates/{id}" \
+  -H "Authorization: Bearer stk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"subject": {"en": "Welcome aboard, {{name}}!"}}'
+
+# Delete → { "message": "..." }
+curl -X DELETE "https://sentroy.com/api/mail/companies/my-company/templates/{id}" \
+  -H "Authorization: Bearer stk_..."
+```
+
+#### Template variables
+
+The body uses a Mustache-like, regex-based engine (single-level — nested
+sections are **not** supported). Variable names match `\w+` (letters,
+digits, underscore; case-sensitive — no dashes or dots) and there is **no**
+default-value syntax. An unmatched placeholder is left in the output
+verbatim. Both brace forms are equivalent.
+
+| Syntax | Meaning |
+|---|---|
+| `{name}` / `{{name}}` | Scalar substitution |
+| `{#items} ... {/items}` | Array section — repeats once per element; element fields are in scope inside (e.g. `{title}`, `{price}`) |
+| `{^name} ... {/^name}` | Inverted section — renders only when `name` is missing / empty / false |
+
+At send time, pass the values in the `variables` object — scalars plus
+arrays for sections:
+
+```ts
+await sentroy.send.email({
+  to: "user@example.com",
+  from: "info@example.com",
+  subject: "Your receipt",
+  domainId: "domain-id",
+  templateId: "template-id",
+  variables: {
+    firstName: "Ada",
+    hasItems: true,
+    items: [{ title: "Keyboard", price: "$80" }],
+  },
+})
+```
+
+If a template references a variable the send call does not provide, the
+request is rejected with **HTTP 422** listing the missing names.
+
 ### Inbox
 
 ```ts
@@ -847,6 +940,34 @@ The handler returns:
 Delivery is fire-and-forget on the Sentroy side with a 5 sec timeout; the dashboard records the last delivery's status + error string per webhook for visibility. Failed deliveries are not auto-retried (admin can flip the enabled toggle to retry manually by re-saving a variable, or we'll add a "resend" button later).
 
 The vault webhook secret namespace is `whsec_*` — distinct from access tokens (`stk_*` / `stk_env_*`).
+
+### CLI (`sentroy mail templates ...`)
+
+The `sentroy` binary also manages mail templates. Auth is `SENTROY_API_KEY` (`stk_...`) plus `SENTROY_COMPANY_SLUG`.
+
+```bash
+# Create — body comes from --mjml-file, inline --mjml, or stdin.
+# --domain is the verified sending domain id.
+sentroy mail templates create --name="Welcome" --subject="Welcome, {{name}}!" \
+  --domain=<domainId> --mjml-file=./welcome.mjml
+
+cat welcome.mjml | sentroy mail templates create --name="Welcome" \
+  --subject="Welcome!" --domain=<domainId>
+
+# Localized --name / --subject accept a plain string OR a JSON object string.
+sentroy mail templates create \
+  --name='{"en":"Welcome","tr":"Hos geldin"}' \
+  --subject='{"en":"Welcome, {{name}}!","tr":"Hos geldin, {{name}}!"}' \
+  --domain=<domainId> --mjml='<mjml>...</mjml>'
+
+# Update — pass any subset; --mjml or --mjml-file replaces the body.
+sentroy mail templates update <id> --subject="Welcome aboard, {{name}}!"
+
+# Delete
+sentroy mail templates delete <id>
+```
+
+> Note: the Go, Python, and PHP SDKs expose templates **read-only** (`list`/`get`). Create / update / delete is available via the TypeScript SDK, the `sentroy` CLI, or the REST endpoint.
 
 ### CLI (`sentroy env ...`)
 

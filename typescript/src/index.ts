@@ -11,6 +11,7 @@ import { Logs } from "./resources/logs"
 import { Buckets } from "./resources/buckets"
 import { MediaResource } from "./resources/media"
 import { Storage } from "./resources/storage"
+import { WhatsApp } from "./resources/whatsapp"
 import type { SentroyClientConfig } from "./types"
 
 export class Sentroy {
@@ -26,6 +27,7 @@ export class Sentroy {
   public readonly buckets: Buckets
   public readonly media: MediaResource
   public readonly storage: Storage
+  public readonly whatsapp: WhatsApp
 
   /**
    * Create a new Sentroy client.
@@ -67,6 +69,14 @@ export class Sentroy {
       config.timeout,
     )
 
+    // WhatsApp Santral via `/api/whatsapp/companies` — core forwards to the
+    // whatsapp subdomain. Same access token.
+    const whatsappHttp = new HttpClient(
+      `${root}/api/whatsapp/companies/${slug}`,
+      config.accessToken,
+      config.timeout,
+    )
+
     this.domains = new Domains(mailHttp)
     this.mailboxes = new Mailboxes(mailHttp)
     this.templates = new Templates(mailHttp)
@@ -79,6 +89,7 @@ export class Sentroy {
     this.buckets = new Buckets(storageHttp)
     this.media = new MediaResource(storageHttp)
     this.storage = new Storage(storageHttp)
+    this.whatsapp = new WhatsApp(whatsappHttp)
   }
 }
 
@@ -89,6 +100,9 @@ export type {
   Domain,
   MailboxUser,
   Template,
+  CreateTemplateParams,
+  UpdateTemplateParams,
+  TemplateListParams,
   LocalizedString,
   MessageAddress,
   MessageSummary,
@@ -139,6 +153,23 @@ export type {
   MailLogStatus,
   LogListParams,
 } from "./types"
+
+export type {
+  WhatsAppNumber,
+  WhatsAppTemplate,
+  CreateWhatsAppTemplateParams,
+  UpdateWhatsAppTemplateParams,
+  WhatsAppAudienceEntry,
+  WhatsAppAudience,
+  CreateWhatsAppAudienceParams,
+  UpdateWhatsAppAudienceParams,
+  WhatsAppSendParams,
+  WhatsAppSendResult,
+  WhatsAppSendStatus,
+  WhatsAppLog,
+  WhatsAppLogListParams,
+  WhatsAppLogListResult,
+} from "./resources/whatsapp"
 
 export { SentroyError } from "./http"
 

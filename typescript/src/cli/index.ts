@@ -3,7 +3,7 @@
  *
  * Subcommand router with no third-party deps. Groups:
  *   - env       Vault sync (push/pull/list/diff) — vault-scoped token
- *   - mail      Mail resource queries (templates/domains/mailboxes/...)
+ *   - mail      Mail resource queries + template CRUD (templates/domains/mailboxes/...)
  *   - storage   Storage resource queries (buckets/media/usage)
  *   - ai        AI Skill install (Claude/Cursor/Windsurf/AGENTS.md)
  *
@@ -14,6 +14,7 @@
 import { cmdPush, cmdPull, cmdList, cmdDiff } from "./env"
 import { MAIL_HANDLERS } from "./mail"
 import { STORAGE_HANDLERS } from "./storage"
+import { WHATSAPP_HANDLERS } from "./whatsapp"
 import { AI_HANDLERS } from "./ai"
 
 const VERSION = "__VERSION__" // replaced at runtime via package.json read
@@ -100,6 +101,9 @@ function showHelp(): void {
       `MAIL (requires SENTROY_API_KEY + SENTROY_COMPANY_SLUG)\n` +
       `  sentroy mail templates list             List email templates\n` +
       `  sentroy mail templates get <id>         Template detail\n` +
+      `  sentroy mail templates create           Create a template (--name, --subject, --domain=<id>, --mjml/--mjml-file/stdin)\n` +
+      `  sentroy mail templates update <id>      Update a template (--name, --subject, --mjml/--mjml-file)\n` +
+      `  sentroy mail templates delete <id>      Delete a template\n` +
       `  sentroy mail domains list               List sending domains\n` +
       `  sentroy mail mailboxes list             List inbox mailboxes\n` +
       `  sentroy mail inbox list                 Recent inbox messages (--mailbox, --folder, --unread, --q, --page, --limit)\n` +
@@ -115,6 +119,15 @@ function showHelp(): void {
       `  sentroy storage media get <bucketSlug> <mediaId>  Media detail\n` +
       `  sentroy storage usage                   Quota + per-bucket breakdown\n` +
       `  sentroy storage quota                   Lightweight quota only\n\n` +
+      `WHATSAPP (requires SENTROY_API_KEY + SENTROY_COMPANY_SLUG)\n` +
+      `  sentroy whatsapp numbers list           List connected WhatsApp numbers\n` +
+      `  sentroy whatsapp templates list         List message templates\n` +
+      `  sentroy whatsapp templates get <id>     Template detail\n` +
+      `  sentroy whatsapp templates create       Create a template (--name, --body/--body-file/stdin, --category, --mediaUrl)\n` +
+      `  sentroy whatsapp templates delete <id>  Delete a template\n` +
+      `  sentroy whatsapp audiences list         List audiences (target lists)\n` +
+      `  sentroy whatsapp send                   Send a template/message (--from, --to|--audience, --template|--body, --vars='{"k":"v"}')\n` +
+      `  sentroy whatsapp logs list              API send logs (--status, --template, --session, --page, --limit)\n\n` +
       `AI SKILL (install the Sentroy AI agent skill into your project)\n` +
       `  sentroy ai install                      Autodetect tools (Claude, Cursor, Windsurf) + AGENTS.md\n` +
       `  sentroy ai install --claude             Install only into .claude/skills/sentroy/\n` +
@@ -132,6 +145,8 @@ function showHelp(): void {
       `EXAMPLES\n` +
       `  sentroy env push .env.production --delete-missing\n` +
       `  sentroy mail templates list --output=json | jq '.[].name'\n` +
+      `  sentroy mail templates create --name=Welcome --subject="Hi {firstName}" --domain=dom_123 --mjml-file=welcome.mjml\n` +
+      `  cat welcome.mjml | sentroy mail templates create --name=Welcome --subject="Hi {firstName}" --domain=dom_123\n` +
       `  sentroy mail logs list --status=bounced --days=7\n` +
       `  sentroy storage buckets list\n` +
       `  sentroy ai install\n\n` +
@@ -210,6 +225,27 @@ async function main(): Promise<void> {
       process.stderr.write(
         `unknown storage command: \`sentroy storage ${resource}${verb ? " " + verb : ""}\`\n` +
           `available: ${Object.keys(STORAGE_HANDLERS).join(", ")}\n`,
+      )
+      process.exit(1)
+    }
+    await handler.fn(argv.slice(handler.consumed))
+    return
+  }
+
+  if (cmd === "whatsapp") {
+    const resource = argv[1]
+    const verb = argv[2]
+    if (!resource) {
+      process.stderr.write(
+        `usage: sentroy whatsapp <resource> [verb] [args]\nresources: numbers, templates, audiences, send, logs\n`,
+      )
+      process.exit(1)
+    }
+    const handler = resolveHandler(WHATSAPP_HANDLERS, resource, verb)
+    if (!handler) {
+      process.stderr.write(
+        `unknown whatsapp command: \`sentroy whatsapp ${resource}${verb ? " " + verb : ""}\`\n` +
+          `available: ${Object.keys(WHATSAPP_HANDLERS).join(", ")}\n`,
       )
       process.exit(1)
     }

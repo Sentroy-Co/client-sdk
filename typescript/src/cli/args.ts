@@ -87,6 +87,21 @@ const VALUE_FLAGS = new Set([
   "out",
   "source",
   "pin",
+  // template write commands (`mail templates create|update`)
+  "name",
+  "subject",
+  "mjml",
+  "mjml-file",
+  // whatsapp commands (`whatsapp templates|send|logs`)
+  "body",
+  "body-file",
+  "audience",
+  "template",
+  "vars",
+  "mediaUrl",
+  "category",
+  "description",
+  "session",
 ])
 
 export function parseFlags(args: string[]): ParsedArgs {

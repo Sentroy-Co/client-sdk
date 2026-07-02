@@ -337,13 +337,36 @@ All paths are relative to `https://sentroy.com/api/companies/<slug>` unless note
 
 ### Mail — templates
 
-| Method | Path | Description | Permission |
-|---|---|---|---|
-| GET | `/templates` | List | `templates.manage` |
-| POST | `/templates` | Create (name/subject/body accept LocalizedString) | `templates.manage` |
-| GET | `/templates/{id}` | Detail | `templates.manage` |
-| PATCH | `/templates/{id}` | Update | `templates.manage` |
-| DELETE | `/templates/{id}` | Remove | `templates.manage` |
+| Method | Path | SDK method | Description | Permission |
+|---|---|---|---|---|
+| GET | `/templates` | `templates.list({ domainId? })` → `Template[]` | List | `templates.manage` |
+| POST | `/templates` | `templates.create(params)` → `Template` | Create (`name`/`subject`/`mjmlBody` accept LocalizedString; `domainId` required) | `templates.manage` |
+| GET | `/templates/{id}` | `templates.get(id)` → `Template` | Detail | `templates.manage` |
+| PATCH | `/templates/{id}` | `templates.update(id, params)` → `Template` | Update (partial; ≥1 field) | `templates.manage` |
+| DELETE | `/templates/{id}` | `templates.delete(id)` → `void` | Remove | `templates.manage` |
+
+`CreateTemplateParams = { name, subject, mjmlBody, domainId }` — `name`/`subject`/`mjmlBody` are `LocalizedString` (plain string **or** `{ tr, en, … }` map); `domainId` is **required** (a verified sending domain id). There is **no `variables` input** — the platform auto-extracts the variable list from the body and returns it on the `Template` as `variables: string[]`. `UpdateTemplateParams = { name?, subject?, mjmlBody? }` (partial, at least one required).
+
+> **Other-language SDKs (Go / Python / PHP) are read-only for templates** — `list`/`get` only. Create / update / delete is available via the TypeScript SDK, the `sentroy` CLI, or the REST endpoints above.
+
+#### Template variables
+
+Templates use a Mustache-like, regex-based, **single-level** syntax (no nesting):
+
+- **Scalar:** `{name}` or `{{name}}` — both brace forms work.
+- **Array section:** `{#items} … {/items}` — repeats once per array element; item fields are in scope inside (e.g. `{title}`, `{price}`).
+- **Inverted section:** `{^name} … {/^name}` — renders only when `name` is missing / empty / false.
+- Variable names match `\w+` (letters, digits, underscore), **case-sensitive**. No dashes or dots.
+- **No default-value syntax.** An unmatched placeholder is left in the output verbatim.
+- Variables are **extracted automatically** — there is no "declare variables" step for user templates.
+
+At send time, pass values in the `variables` object — scalars plus arrays for sections:
+
+```ts
+variables: { firstName: "Ada", hasItems: true, items: [{ title: "Keyboard", price: "$80" }] }
+```
+
+A template that references a variable the send call does not provide is rejected with **HTTP 422** listing the missing names.
 
 ### Mail — inbox
 
@@ -424,21 +447,23 @@ Env vault uses **its own scoped token** (`Authorization: Bearer stk_env_<...>`),
 
 ## LocalizedString gotcha
 
-Many mail-side string fields (template `name`, `subject`, `body`, status branding `tagline`, etc.) accept **either** a plain string **or** a `{tr, en}` object. Both forms are valid for the same endpoint.
+Many mail-side string fields (template `name`, `subject`, `mjmlBody`, status branding `tagline`, etc.) accept **either** a plain string **or** a `{tr, en}` object. Both forms are valid for the same endpoint. (`domainId` is required on create — a verified sending domain id.)
 
 ```ts
 // Plain string — applied to all locales
 await sentroy.templates.create({
   name: "Welcome",
   subject: "Welcome to Acme",
-  body: "<p>Hi {{firstName}}</p>",
+  mjmlBody: "<p>Hi {{firstName}}</p>",
+  domainId: "dom_abc", // REQUIRED — verified sending domain
 });
 
 // Localized — different copy per locale
 await sentroy.templates.create({
   name: { tr: "Hoş geldin", en: "Welcome" },
   subject: { tr: "Acme'ye hoş geldin", en: "Welcome to Acme" },
-  body: { tr: "<p>Merhaba {{firstName}}</p>", en: "<p>Hi {{firstName}}</p>" },
+  mjmlBody: { tr: "<p>Merhaba {{firstName}}</p>", en: "<p>Hi {{firstName}}</p>" },
+  domainId: "dom_abc", // REQUIRED
 });
 ```
 
@@ -550,6 +575,11 @@ sentroy env diff                              # local vs. vault
 # Mail
 sentroy mail templates list
 sentroy mail templates get <id>
+sentroy mail templates create --name=<n> --subject=<s> --domain=<domainId> (--mjml-file=<path> | --mjml='<inline>' | pipe body on stdin)
+sentroy mail templates update <id> [--name=<n>] [--subject=<s>] [--mjml='<inline>' | --mjml-file=<path>]
+sentroy mail templates delete <id>
+# --name / --subject accept a plain string OR a JSON object string, e.g. --name='{"en":"Welcome","tr":"Hos geldin"}'
+# --domain is the verified sending domain id.
 sentroy mail domains list
 sentroy mail mailboxes list
 sentroy mail inbox list [--mailbox=<addr>] [--folder=inbox|sent|trash] [--unread]
@@ -592,4 +622,4 @@ sentroy ai install [--claude] [--cursor] [--windsurf] [--agents] [--all] [--upgr
 - `https://docs.sentroy.com/auth-projects` — Auth-as-a-Service docs
 - `https://raw.githubusercontent.com/Sentroy-Co/client-sdk/main/typescript/AGENTS.md` — the full 900-line TS reference (deep dive)
 
-<!-- skill-version: 2.16.0 -->
+<!-- skill-version: 2.17.0 -->

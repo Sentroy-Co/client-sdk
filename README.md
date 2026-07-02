@@ -49,6 +49,16 @@ https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/php/READ
 https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/curl/README.md
 ```
 
+The same docs are also mirrored — ready to fetch — on the docs site:
+
+```
+https://docs.sentroy.com/llms.txt        # discovery index
+https://docs.sentroy.com/llms-full.txt   # everything concatenated
+https://docs.sentroy.com/llms-mail.txt   # Mail only
+https://docs.sentroy.com/skill.md        # Anthropic Skill format
+https://docs.sentroy.com/agents.md       # universal markdown
+```
+
 > Only the TypeScript SDK has split `README.md` (lean, npm-facing) from `AGENTS.md` (full reference). The Go, Python, PHP and cURL READMEs remain comprehensive and double as agent-facing docs.
 
 ## License

@@ -71,6 +71,35 @@ export interface Template {
   updatedAt: string
 }
 
+/**
+ * Create a template. `name`, `subject` and `mjmlBody` accept either a flat
+ * string (single locale) or a `{ tr, en, … }` map. `domainId` ties the
+ * template to a verified sending domain.
+ *
+ * Note: `variables` is **not** part of the input — the platform extracts
+ * the placeholder list (`{firstName}`, `{#items}…{/items}`, …) from the
+ * body automatically and returns it on the resulting `Template`.
+ */
+export interface CreateTemplateParams {
+  name: LocalizedString
+  subject: LocalizedString
+  mjmlBody: LocalizedString
+  domainId: string
+}
+
+/** Partial update — send only the fields you want to change. */
+export interface UpdateTemplateParams {
+  name?: LocalizedString
+  subject?: LocalizedString
+  mjmlBody?: LocalizedString
+}
+
+/** Optional filter for `templates.list()`. */
+export interface TemplateListParams {
+  /** Only return templates tied to this sending domain. */
+  domainId?: string
+}
+
 // ── Inbox ──────────────────────────────────────────────────────────────────
 
 export interface MessageAddress {

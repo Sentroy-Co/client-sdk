@@ -1,11 +1,14 @@
 /**
- * `sentroy mail …` — read-only subcommands for the mail product.
+ * `sentroy mail …` — subcommands for the mail product.
+ *
+ * Mostly read-only queries (templates/domains/mailboxes/inbox/logs/…), plus
+ * a small set of template write commands (`templates create|update|delete`).
  *
  * Every handler resolves shared opts (token + base URL + company slug),
  * builds an optional query string from CLI flags, calls the platform
  * REST API under `/api/companies/<slug>/…`, then prints the result via
  * the shared table/json formatter (`printRows` for lists, `printDetail`
- * for single-resource gets).
+ * for single-resource gets/writes).
  *
  * Auth: Bearer `stk_…` access token (resolved by `resolveSharedOpts`).
  * Output: table by default, `--output=json` for scripting.
@@ -14,7 +17,15 @@
  * dispatch `sentroy mail <group> <action>` without each handler having
  * to know about the router.
  */
-import { apiFetch, parseFlags, resolveSharedOpts, type SharedOpts } from "./args"
+import * as fs from "fs"
+import {
+  apiFetch,
+  fail,
+  ok,
+  parseFlags,
+  resolveSharedOpts,
+  type SharedOpts,
+} from "./args"
 import { loc, printDetail, printRows, type Column } from "./format"
 
 // ── Types (loose — matches platform JSON shape, not Mongoose models) ────
@@ -168,6 +179,135 @@ async function templatesGet(args: string[]): Promise<void> {
     companyPath(shared, `/templates/${encodeURIComponent(id)}`),
   )
   printDetail(data ?? {}, flags)
+}
+
+/**
+ * Localized field coercion. A `{tr,en}` map can be passed as a JSON object
+ * string (`--name='{"tr":"Merhaba","en":"Hello"}'`); anything else is used
+ * verbatim as a single-locale string.
+ */
+function parseLocalized(value: string): LocalizedString {
+  const trimmed = value.trim()
+  if (trimmed.startsWith("{")) {
+    try {
+      const obj = JSON.parse(trimmed)
+      if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+        return obj as Record<string, string>
+      }
+    } catch {
+      // not JSON — fall through to literal string
+    }
+  }
+  return value
+}
+
+/** Read piped stdin (non-TTY only) synchronously. */
+function readStdin(): string {
+  if (process.stdin.isTTY) return ""
+  try {
+    return fs.readFileSync(0, "utf8")
+  } catch {
+    return ""
+  }
+}
+
+/**
+ * Resolve the template body (MJML or raw HTML) from, in priority order:
+ *   --mjml-file=<path> · --mjml='<inline>' · piped stdin (create only).
+ * Returns null when no source was provided.
+ */
+function resolveBody(
+  flags: Record<string, string | boolean>,
+  allowStdin: boolean,
+): string | null {
+  const file = typeof flags["mjml-file"] === "string" ? flags["mjml-file"] : null
+  if (file) {
+    if (!fs.existsSync(file)) fail(`file not found: ${file}`)
+    return fs.readFileSync(file, "utf8")
+  }
+  const inline = typeof flags.mjml === "string" ? flags.mjml : null
+  if (inline) return inline
+  if (allowStdin) {
+    const piped = readStdin()
+    if (piped.trim()) return piped
+  }
+  return null
+}
+
+async function templatesCreate(args: string[]): Promise<void> {
+  const { flags, shared } = ctx(args)
+  const nameRaw = typeof flags.name === "string" ? flags.name : null
+  const subjectRaw = typeof flags.subject === "string" ? flags.subject : null
+  const domainId = typeof flags.domain === "string" ? flags.domain : null
+  if (!nameRaw) fail("--name is required (string or JSON {tr,en})")
+  if (!subjectRaw) fail("--subject is required (string or JSON {tr,en})")
+  if (!domainId) {
+    fail("--domain=<domainId> is required (the verified sending domain id)")
+  }
+  const body = resolveBody(flags, true)
+  if (!body) {
+    fail(
+      "no body. Pass --mjml-file=<path>, --mjml='<MJML/HTML>', or pipe the body on stdin.",
+    )
+  }
+  const created = await apiFetch<Record<string, unknown>>(
+    shared,
+    companyPath(shared, "/templates"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        name: parseLocalized(nameRaw),
+        subject: parseLocalized(subjectRaw),
+        mjmlBody: parseLocalized(body),
+        domainId,
+      }),
+    },
+  )
+  ok(`created template ${String((created as { id?: string }).id ?? "")}`)
+  printDetail(created ?? {}, flags)
+}
+
+async function templatesUpdate(args: string[]): Promise<void> {
+  const { positional, flags, shared } = ctx(args)
+  const id = positional[0]
+  if (!id) {
+    process.stderr.write(
+      "usage: sentroy mail templates update <id> [--name] [--subject] [--mjml | --mjml-file]\n",
+    )
+    process.exit(1)
+  }
+  const updates: Record<string, unknown> = {}
+  if (typeof flags.name === "string") updates.name = parseLocalized(flags.name)
+  if (typeof flags.subject === "string") {
+    updates.subject = parseLocalized(flags.subject)
+  }
+  const body = resolveBody(flags, false)
+  if (body !== null) updates.mjmlBody = parseLocalized(body)
+  if (Object.keys(updates).length === 0) {
+    fail("nothing to update. Pass --name, --subject, --mjml, or --mjml-file.")
+  }
+  const updated = await apiFetch<Record<string, unknown>>(
+    shared,
+    companyPath(shared, `/templates/${encodeURIComponent(id)}`),
+    { method: "PATCH", body: JSON.stringify(updates) },
+  )
+  ok(`updated template ${id}`)
+  printDetail(updated ?? {}, flags)
+}
+
+async function templatesDelete(args: string[]): Promise<void> {
+  const { positional, shared } = ctx(args)
+  const id = positional[0]
+  if (!id) {
+    process.stderr.write("usage: sentroy mail templates delete <id>\n")
+    process.exit(1)
+  }
+  await apiFetch(
+    shared,
+    companyPath(shared, `/templates/${encodeURIComponent(id)}`),
+    { method: "DELETE" },
+  )
+  ok(`deleted template ${id}`)
 }
 
 // ── Domains ─────────────────────────────────────────────────────────────
@@ -350,6 +490,9 @@ async function analytics(args: string[]): Promise<void> {
 export const MAIL_HANDLERS = {
   templatesList,
   templatesGet,
+  templatesCreate,
+  templatesUpdate,
+  templatesDelete,
   domainsList,
   mailboxesList,
   inboxList,
