@@ -80,7 +80,9 @@ func doRequest[T any](h *httpClient, method, path string, query map[string]strin
 		return zero, err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+h.token)
+	if h.token != "" {
+		req.Header.Set("Authorization", "Bearer "+h.token)
+	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -162,7 +164,9 @@ func postMultipart[T any](h *httpClient, path string, fields []multipartField) (
 	if err != nil {
 		return zero, err
 	}
-	req.Header.Set("Authorization", "Bearer "+h.token)
+	if h.token != "" {
+		req.Header.Set("Authorization", "Bearer "+h.token)
+	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	resp, err := h.client.Do(req)
@@ -208,7 +212,9 @@ func (h *httpClient) fetchRaw(path string, query map[string]string) ([]byte, str
 	if err != nil {
 		return nil, "", err
 	}
-	req.Header.Set("Authorization", "Bearer "+h.token)
+	if h.token != "" {
+		req.Header.Set("Authorization", "Bearer "+h.token)
+	}
 
 	resp, err := h.client.Do(req)
 	if err != nil {

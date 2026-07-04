@@ -47,6 +47,9 @@ class Buckets
      */
     public function create(array $params)
     {
+        if (!isset($params['name']) || $params['name'] === '') {
+            throw new \InvalidArgumentException("Bucket 'name' is required.");
+        }
         $body = array('name' => $params['name']);
         if (isset($params['slug'])) {
             $body['slug'] = $params['slug'];

@@ -101,6 +101,10 @@ class _HttpClient:
     ) -> Any:
         return self._request("DELETE", path, query=query)
 
+    def delete_with_body(self, path: str, body: Optional[Any] = None) -> Any:
+        """DELETE with a JSON body (used by audience list member removal)."""
+        return self._request("DELETE", path, body=body)
+
     def post_multipart(
         self,
         path: str,

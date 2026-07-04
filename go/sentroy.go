@@ -12,10 +12,14 @@
 //	domains, err := client.Domains.List()
 //	buckets, err := client.Buckets.List()
 //
-// The SDK uses a single BaseURL (the platform root) for both mail and
-// storage resources. The platform's API gateway transparently routes
-// mail calls to the mail subdomain and storage calls to the storage
-// subdomain; consumers never see the split.
+// The SDK uses a single BaseURL (the platform root) for mail, storage,
+// and WhatsApp resources. The platform's API gateway transparently routes
+// mail calls to the mail subdomain, storage calls to the storage
+// subdomain, and WhatsApp calls to the whatsapp subdomain; consumers
+// never see the split. The same stk_ access token works across all three.
+//
+// Sentroy Auth-as-a-Service (end-user pools, aps_ project keys) is a
+// separate entry point — see [NewAuth].
 package sentroy
 
 import (
@@ -39,14 +43,19 @@ type Config struct {
 
 // Client is the entry point for the Sentroy SDK. Use [New] to create one.
 type Client struct {
-	Domains   *DomainsService
-	Mailboxes *MailboxesService
-	Templates *TemplatesService
-	Inbox     *InboxService
-	Send      *SendService
-	Buckets   *BucketsService
-	Media     *MediaService
-	Storage   *StorageService
+	Domains      *DomainsService
+	Mailboxes    *MailboxesService
+	Templates    *TemplatesService
+	Inbox        *InboxService
+	Send         *SendService
+	Audience     *AudienceService
+	Suppressions *SuppressionsService
+	Webhooks     *WebhooksService
+	Logs         *LogsService
+	Buckets      *BucketsService
+	Media        *MediaService
+	Storage      *StorageService
+	WhatsApp     *WhatsAppService
 }
 
 // New creates a new Sentroy [Client] with the given configuration.
@@ -73,14 +82,27 @@ func New(config Config) *Client {
 		config.Timeout,
 	)
 
+	// WhatsApp Santral via `/api/whatsapp/companies` — core forwards to
+	// the whatsapp subdomain. Same access token.
+	whatsappHTTP := newHTTPClient(
+		base+"/api/whatsapp/companies/"+slug,
+		config.AccessToken,
+		config.Timeout,
+	)
+
 	return &Client{
-		Domains:   newDomainsService(mailHTTP),
-		Mailboxes: newMailboxesService(mailHTTP),
-		Templates: newTemplatesService(mailHTTP),
-		Inbox:     newInboxService(mailHTTP),
-		Send:      newSendService(mailHTTP),
-		Buckets:   newBucketsService(storageHTTP),
-		Media:     newMediaService(storageHTTP),
-		Storage:   newStorageService(storageHTTP),
+		Domains:      newDomainsService(mailHTTP),
+		Mailboxes:    newMailboxesService(mailHTTP),
+		Templates:    newTemplatesService(mailHTTP),
+		Inbox:        newInboxService(mailHTTP),
+		Send:         newSendService(mailHTTP),
+		Audience:     newAudienceService(mailHTTP),
+		Suppressions: newSuppressionsService(mailHTTP),
+		Webhooks:     newWebhooksService(mailHTTP),
+		Logs:         newLogsService(mailHTTP),
+		Buckets:      newBucketsService(storageHTTP),
+		Media:        newMediaService(storageHTTP),
+		Storage:      newStorageService(storageHTTP),
+		WhatsApp:     newWhatsAppService(whatsappHTTP),
 	}
 }

@@ -30,6 +30,6 @@ class Domains
      */
     public function get($id)
     {
-        return $this->http->get('/domains/' . urlencode($id));
+        return $this->http->get('/domains/' . rawurlencode($id));
     }
 }

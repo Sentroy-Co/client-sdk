@@ -6,7 +6,7 @@
 
 <p align="center">
   Server-side SDK to interact with the Sentroy platform API.<br />
-  Manage mail (domains, mailboxes, templates, inbox, send) and storage (buckets, media) from a single entry point.
+  Manage mail (domains, mailboxes, templates, inbox, send, audience, suppressions, webhooks, logs), storage (buckets, media) and WhatsApp from a single entry point — plus a separate Auth-as-a-Service client.
 </p>
 
 <p align="center">
@@ -58,11 +58,28 @@ mailboxes = sentroy.mailboxes.list()
 ### Templates
 
 ```python
-# List all templates
+# List all templates (optionally filtered by sending domain)
 templates = sentroy.templates.list()
+templates = sentroy.templates.list(domain_id="domain-id")
 
 # Get a template by ID
 template = sentroy.templates.get("template-id")
+
+# Create — name/subject/mjml_body accept a flat string or a {lang: value} map.
+# `variables` is NOT an input: the platform extracts placeholders from the
+# body and returns them on the created template. Requires templates.manage.
+template = sentroy.templates.create(
+    name={"en": "Welcome", "tr": "Hosgeldin"},
+    subject={"en": "Welcome, {{name}}!", "tr": "Hosgeldin, {{name}}!"},
+    mjml_body={"en": "<mjml>...</mjml>", "tr": "<mjml>...</mjml>"},
+    domain_id="domain-id",
+)
+
+# Partial update
+template = sentroy.templates.update("template-id", subject="New subject")
+
+# Delete
+sentroy.templates.delete("template-id")
 ```
 
 Templates support multiple languages. A field like `name` or `subject` can be a plain string or a dict keyed by language code:
@@ -170,6 +187,145 @@ result = sentroy.send.email(SendParams(
 ))
 ```
 
+### Audience (Contacts & Lists)
+
+Company-wide contact records plus named lists (groupings).
+
+```python
+# Contacts — paginated list with filters
+result = sentroy.audience.contacts.list(page=1, limit=50, status="active", tags=["vip"])
+print(result.total, len(result.contacts))
+
+# Email-prefix autocomplete (server-capped at 10 results)
+matches = sentroy.audience.contacts.search("john@")
+
+# CRUD
+contact = sentroy.audience.contacts.get("contact-id")
+contact = sentroy.audience.contacts.create(email="user@example.com", name="John", tags=["vip"])
+contact = sentroy.audience.contacts.update("contact-id", status="unsubscribed")
+sentroy.audience.contacts.delete("contact-id")  # soft-delete: marks unsubscribed
+
+# Lists
+lists = sentroy.audience.lists.list()
+lst = sentroy.audience.lists.get("list-id")
+lst = sentroy.audience.lists.create(name="Newsletter", description="Weekly digest")
+sentroy.audience.lists.delete("list-id")  # only removes the grouping
+
+# List membership (scoped sub-resource)
+members = sentroy.audience.lists.members("list-id")
+contacts = members.list()
+members.add("contact-id")
+members.remove("contact-id")  # contact record preserved
+```
+
+### Suppressions
+
+Suppressed recipients are skipped at send time. Bounces/complaints are added
+automatically server-side; use `add` for manual opt-outs.
+
+```python
+suppressions = sentroy.suppressions.list(page=1, limit=50, domain_id="domain-id")
+
+suppression = sentroy.suppressions.add(
+    email="user@example.com",
+    domain_id="domain-id",
+    reason="manual",
+)
+
+sentroy.suppressions.remove("suppression-id")
+```
+
+### Webhooks
+
+```python
+# List (optionally scoped to a domain)
+webhooks = sentroy.webhooks.list(domain_id="domain-id")
+
+# Create — `secret` is returned ONLY here; store it for HMAC verification
+webhook = sentroy.webhooks.create(
+    url="https://example.com/hooks/mail",
+    events=["sent", "bounced", "opened"],
+    domain_id="domain-id",
+)
+print(webhook.secret)
+
+# Read / update / delete (reads never return the secret)
+webhook = sentroy.webhooks.get("webhook-id")
+webhook = sentroy.webhooks.update("webhook-id", active=False)
+sentroy.webhooks.delete("webhook-id")
+
+# Fire a custom test payload at the current URL
+result = sentroy.webhooks.test("webhook-id", event="sent", payload={"demo": True})
+print(result.status, result.response_status, result.duration_ms)
+
+# Delivery log (test/replay dispatches only)
+deliveries = sentroy.webhooks.deliveries("webhook-id")
+page = deliveries.list(page=1, limit=20, status="failed")
+row = deliveries.get("delivery-id")     # full payload + response body (4KB cap)
+replayed = deliveries.replay("delivery-id")  # re-fires at the CURRENT URL
+```
+
+### Mail Logs
+
+```python
+logs = sentroy.logs.list(
+    page=1,
+    limit=50,
+    status="sent",              # queued|processing|sent|bounced|failed
+    domain_id="domain-id",
+    from_="2026-01-01T00:00:00Z",  # ISO, inclusive
+    to="2026-01-31T23:59:59Z",     # ISO, inclusive
+)
+
+log = sentroy.logs.get("log-id")
+print(log.status, log.opened_at, log.clicked_at)
+```
+
+### WhatsApp
+
+WhatsApp Santral — same `stk_` token as mail/storage.
+
+```python
+# Connected numbers (only connected ones can send)
+numbers = sentroy.whatsapp.numbers.list()
+
+# Templates — variables auto-extracted from {{placeholders}} in body
+templates = sentroy.whatsapp.templates.list()
+tpl = sentroy.whatsapp.templates.create(
+    name="Order shipped",
+    body="Hi {{name}}, your order {{orderId}} has shipped!",
+)
+tpl = sentroy.whatsapp.templates.update(tpl.id, category="transactional")
+sentroy.whatsapp.templates.delete(tpl.id)
+
+# Audiences — entries accept plain phones or per-recipient variable maps
+audience = sentroy.whatsapp.audiences.create(
+    name="Beta users",
+    entries=[
+        "+905551112233",
+        {"phone": "+905554445566", "variables": {"name": "Ayse"}},
+    ],
+)
+
+# Send — single (`to`) XOR bulk (`audience_id`); template XOR raw body
+result = sentroy.whatsapp.send(
+    to="+905551112233",
+    template_id=tpl.id,
+    variables={"name": "John", "orderId": "1234"},
+)
+result = sentroy.whatsapp.send(
+    audience_id=audience.id,
+    body="Hello {{name}}!",   # global variables merged UNDER per-recipient ones
+    variables={"name": "there"},
+)
+print(result.total, result.sent, result.failed)
+for r in result.results:
+    print(r.to, r.status, r.wa_message_id or r.error)
+
+# Send logs
+logs = sentroy.whatsapp.logs.list(page=1, limit=20, status="failed")
+```
+
 ### Buckets
 
 Storage is organized into **buckets** — isolated containers with their own
@@ -237,6 +393,130 @@ thumb, _ = sentroy.media.download(
 # Delete
 sentroy.media.delete("product-assets", "media-id")
 ```
+
+#### Video uploads
+
+```python
+# Light single-pass H.264 re-encode (sync — roughly doubles upload latency)
+uploaded = sentroy.media.upload("videos", body="./clip.mp4", compress_video=True)
+
+# Async multi-quality ladder (144p/480p/720p/1080p) — implies compress_video.
+# Returns immediately with processing.status == "queued"; poll media.get.
+uploaded = sentroy.media.upload("videos", body="./clip.mp4", transcode_video=True)
+
+import time
+media = sentroy.media.get("videos", uploaded.id)
+while media.processing and media.processing.status not in ("completed", "failed"):
+    time.sleep(4)
+    media = sentroy.media.get("videos", media.id)
+print([v.height for v in media.video_meta.variants])
+```
+
+#### Thumbnail helpers
+
+Pure URL helpers — pick the right pre-generated thumbnail for a display
+target instead of shipping the original. Call with a 2x target for retina.
+
+```python
+from sentroy import pick_thumbnail_url, pick_preset_thumbnail_url, THUMBNAIL_PRESETS
+
+avatar_url = pick_thumbnail_url(media, 56 * 2)          # explicit px target
+card_url = pick_preset_thumbnail_url(media, "card")     # avatar|card|preview|hero
+print(THUMBNAIL_PRESETS)  # {"avatar": 128, "card": 500, "preview": 960, "hero": 1600}
+```
+
+### Storage quota & usage
+
+```python
+quota = sentroy.storage.quota()
+print(quota.used, quota.limit, quota.mail_used)  # limit 0 = unlimited
+
+usage = sentroy.storage.usage()
+for bucket in usage.buckets:
+    print(bucket.slug, bucket.storage_used, bucket.file_count)
+for row in usage.by_type:
+    print(row.type, row.count, row.bytes)
+```
+
+## Auth-as-a-Service (`SentroyAuth`)
+
+Separate client for Sentroy Auth Projects (your own end-user pool) — it is
+**not** attached to the root `Sentroy` client: different base URL
+(`https://auth.sentroy.com`) and a different credential (project `aps_`
+API key).
+
+> The `aps_` key is the project's **master key** — keep it server-only,
+> never ship it to a browser.
+
+```python
+from sentroy import SentroyAuth, SentroyAuthError
+
+auth = SentroyAuth(
+    project_slug="my-app",
+    api_key="aps_...",                        # server-only
+    # auth_base_url="https://auth.sentroy.com",  # default
+)
+
+# Sign up / sign in
+res = auth.sign_up(email="user@example.com", password="s3cret!", display_name="John")
+
+outcome = auth.sign_in(email="user@example.com", password="s3cret!")
+if outcome.kind == "mfa":
+    auth.verify_mfa(mfa_token=outcome.mfa.mfa_token, code="123456")
+
+print(auth.user)          # current SentroyAuthUser (or None)
+print(auth.access_token)  # current end-user access token (or None)
+
+# Session lifecycle
+auth.refresh_now()        # exchange refresh token for new tokens
+auth.sign_out()           # best-effort revoke + clear local session
+
+# Email / password flows
+auth.send_password_reset("user@example.com")
+auth.confirm_password_reset(token="...", new_password="...")
+auth.verify_email("token-from-mail")
+auth.send_magic_link(email="user@example.com", redirect_uri="https://rp/cb")
+auth.consume_magic_link("token-from-mail")
+auth.accept_invitation(token="...", password="...")
+
+# Social login (URL builder only — redirect the user's browser to it)
+url = auth.social_authorize_url("google", redirect_uri="https://rp/cb")
+
+# Signed-in user (bearer) endpoints
+user = auth.get_current_user()
+sessions = auth.list_sessions()
+auth.revoke_session("session-id")
+auth.change_password(current_password="...", new_password="...")  # clears session
+auth.request_email_change(new_email="new@example.com", current_password="...")
+auth.confirm_email_change("token-from-mail")
+auth.request_account_deletion("current-password")
+auth.confirm_account_deletion("token-from-mail")
+activity = auth.get_activity()
+
+# MFA (TOTP)
+status = auth.mfa.get_status()
+enroll = auth.mfa.enroll_totp()               # secret + otpauth URI
+codes = auth.mfa.verify_totp_enrollment("123456").recovery_codes  # shown once
+auth.mfa.disable_totp("current-password")
+
+# Passkeys (management; WebAuthn register/authenticate ceremonies are browser-only)
+passkeys = auth.passkey.list()
+auth.passkey.delete("passkey-id")
+
+# Firebase-style state subscription
+unsubscribe = auth.on_auth_state_changed(lambda user: print("auth state:", user))
+unsubscribe()
+
+# Error handling
+try:
+    auth.sign_in(email="user@example.com", password="wrong")
+except SentroyAuthError as err:
+    print(err.code, err.status)  # e.g. "invalid_credentials", 401
+```
+
+Session state is held in memory by default; pass a custom `storage` object
+with `read()` / `write(value)` / `clear()` for persistence. There is no
+background refresh timer — call `refresh_now()` when the token nears expiry.
 
 ## Error Handling
 

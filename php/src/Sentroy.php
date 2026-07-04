@@ -19,6 +19,18 @@ class Sentroy
     /** @var Send */
     public $send;
 
+    /** @var Audience */
+    public $audience;
+
+    /** @var Suppressions */
+    public $suppressions;
+
+    /** @var Webhooks */
+    public $webhooks;
+
+    /** @var Logs */
+    public $logs;
+
     /** @var Buckets */
     public $buckets;
 
@@ -28,13 +40,18 @@ class Sentroy
     /** @var Storage */
     public $storage;
 
+    /** @var WhatsApp */
+    public $whatsapp;
+
     /**
      * Create a new Sentroy client.
      *
      * A single base_url covers every resource — mail (domains, mailboxes,
-     * templates, inbox, send) and storage (buckets, media). The platform
-     * gateway transparently forwards mail requests to the mail subdomain
-     * and storage requests to the storage subdomain.
+     * templates, inbox, send, audience, suppressions, webhooks, logs),
+     * storage (buckets, media) and WhatsApp (numbers, templates,
+     * audiences, logs, send). The platform gateway transparently forwards
+     * each request to the right subdomain; the same stk_ token works
+     * across all three.
      *
      * @param array $config {
      *     @type string $base_url      Sentroy platform root (e.g. https://sentroy.com)
@@ -73,14 +90,25 @@ class Sentroy
             $config['access_token'],
             $timeout
         );
+        // WhatsApp Santral flows through /api/whatsapp/companies.
+        $whatsappHttp = new HttpClient(
+            $base . '/api/whatsapp/companies/' . $slug,
+            $config['access_token'],
+            $timeout
+        );
 
         $this->domains = new Domains($mailHttp);
         $this->mailboxes = new Mailboxes($mailHttp);
         $this->templates = new Templates($mailHttp);
         $this->inbox = new Inbox($mailHttp);
         $this->send = new Send($mailHttp);
+        $this->audience = new Audience($mailHttp);
+        $this->suppressions = new Suppressions($mailHttp);
+        $this->webhooks = new Webhooks($mailHttp);
+        $this->logs = new Logs($mailHttp);
         $this->buckets = new Buckets($storageHttp);
         $this->media = new Media($storageHttp);
         $this->storage = new Storage($storageHttp);
+        $this->whatsapp = new WhatsApp($whatsappHttp);
     }
 }

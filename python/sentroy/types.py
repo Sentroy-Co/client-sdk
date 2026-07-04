@@ -352,6 +352,8 @@ class MediaThumbnail:
     height: int
     file_name: str
     size: int
+    # Some endpoints expose the thumbnail's own URL at runtime.
+    url: Optional[str] = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> MediaThumbnail:
@@ -360,6 +362,7 @@ class MediaThumbnail:
             height=d.get("height", 0),
             file_name=d.get("fileName", d.get("file_name", "")),
             size=d.get("size", 0),
+            url=d.get("url"),
         )
 
 
@@ -379,6 +382,77 @@ class MediaImageMeta:
             thumbnails=[
                 MediaThumbnail.from_dict(t) for t in d.get("thumbnails", [])
             ],
+        )
+
+
+@dataclass
+class MediaVideoVariant:
+    """Single transcoded video rung (generated with ``transcode_video=True``).
+
+    Reachable via ``/f/<mediaId>/<height>`` (e.g. ``/f/abc/720``).
+    """
+
+    height: int
+    width: int
+    file_name: str
+    size: int
+    bitrate: Optional[int] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> MediaVideoVariant:
+        return cls(
+            height=d.get("height", 0),
+            width=d.get("width", 0),
+            file_name=d.get("fileName", d.get("file_name", "")),
+            size=d.get("size", 0),
+            bitrate=d.get("bitrate"),
+        )
+
+
+@dataclass
+class MediaVideoMeta:
+    width: int
+    height: int
+    duration: float  # seconds; may be 0 if probe failed
+    variants: list[MediaVideoVariant]
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> MediaVideoMeta:
+        return cls(
+            width=d.get("width", 0),
+            height=d.get("height", 0),
+            duration=d.get("duration", 0),
+            variants=[
+                MediaVideoVariant.from_dict(v) for v in d.get("variants", [])
+            ],
+        )
+
+
+@dataclass
+class MediaProcessing:
+    """Async background-processing tracker (video variant ladder).
+
+    Poll ``media.get`` while ``status`` is ``queued`` / ``processing``.
+    """
+
+    status: str  # "queued" | "processing" | "completed" | "failed"
+    variants_total: Optional[int] = None
+    variants_completed: Optional[int] = None
+    error: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> MediaProcessing:
+        return cls(
+            status=d.get("status", ""),
+            variants_total=d.get("variantsTotal", d.get("variants_total")),
+            variants_completed=d.get(
+                "variantsCompleted", d.get("variants_completed")
+            ),
+            error=d.get("error"),
+            started_at=d.get("startedAt", d.get("started_at")),
+            completed_at=d.get("completedAt", d.get("completed_at")),
         )
 
 
@@ -403,10 +477,20 @@ class Media:
     alt: Optional[str] = None
     caption: Optional[str] = None
     image_meta: Optional[MediaImageMeta] = None
+    # Populated for video uploads with transcode_video=True.
+    video_meta: Optional[MediaVideoMeta] = None
+    # Present on uploads that triggered async work (video transcode).
+    processing: Optional[MediaProcessing] = None
+    # Direct CDN URL on public buckets (not always present).
+    url: Optional[str] = None
+    # Auth-gated download URL (proxy or short-lived signed link).
+    download_url: Optional[str] = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Media:
         image_meta_raw = d.get("imageMeta", d.get("image_meta"))
+        video_meta_raw = d.get("videoMeta", d.get("video_meta"))
+        processing_raw = d.get("processing")
         return cls(
             id=d["id"],
             bucket_id=d.get("bucketId", d.get("bucket_id", "")),
@@ -427,6 +511,18 @@ class Media:
                 if isinstance(image_meta_raw, dict)
                 else None
             ),
+            video_meta=(
+                MediaVideoMeta.from_dict(video_meta_raw)
+                if isinstance(video_meta_raw, dict)
+                else None
+            ),
+            processing=(
+                MediaProcessing.from_dict(processing_raw)
+                if isinstance(processing_raw, dict)
+                else None
+            ),
+            url=d.get("url"),
+            download_url=d.get("downloadUrl", d.get("download_url")),
             created_at=d.get("createdAt", d.get("created_at", "")),
             updated_at=d.get("updatedAt", d.get("updated_at", "")),
         )
@@ -534,4 +630,440 @@ class StorageUsage:
             by_type=[
                 StorageUsageByType.from_dict(t) for t in (d.get("byType") or [])
             ],
+        )
+
+
+# ── Audience / Contacts ─────────────────────────────────────────────────────
+
+
+@dataclass
+class Contact:
+    id: str
+    company_id: str
+    email: str
+    tags: list[str]
+    status: str  # "active" | "unsubscribed" | "bounced"
+    metadata: dict[str, Any]
+    created_at: str
+    updated_at: str
+    name: Optional[str] = None
+    last_emailed_at: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> Contact:
+        return cls(
+            id=d["id"],
+            company_id=d.get("companyId", d.get("company_id", "")),
+            email=d.get("email", ""),
+            name=d.get("name"),
+            tags=d.get("tags", []),
+            status=d.get("status", ""),
+            metadata=d.get("metadata") or {},
+            last_emailed_at=d.get("lastEmailedAt", d.get("last_emailed_at")),
+            created_at=d.get("createdAt", d.get("created_at", "")),
+            updated_at=d.get("updatedAt", d.get("updated_at", "")),
+        )
+
+
+@dataclass
+class ContactList:
+    id: str
+    company_id: str
+    name: str
+    created_at: str
+    updated_at: str
+    description: Optional[str] = None
+    member_count: Optional[int] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> ContactList:
+        return cls(
+            id=d["id"],
+            company_id=d.get("companyId", d.get("company_id", "")),
+            name=d.get("name", ""),
+            description=d.get("description"),
+            member_count=d.get("memberCount", d.get("member_count")),
+            created_at=d.get("createdAt", d.get("created_at", "")),
+            updated_at=d.get("updatedAt", d.get("updated_at", "")),
+        )
+
+
+@dataclass
+class ContactListResult:
+    contacts: list[Contact]
+    total: int
+    page: int
+    limit: int
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> ContactListResult:
+        return cls(
+            contacts=[Contact.from_dict(c) for c in d.get("contacts", [])],
+            total=d.get("total", 0),
+            page=d.get("page", 0),
+            limit=d.get("limit", 0),
+        )
+
+
+# ── Suppressions ────────────────────────────────────────────────────────────
+
+
+@dataclass
+class Suppression:
+    """A suppressed recipient — skipped at send time until removed."""
+
+    id: str
+    email: str
+    reason: str
+    domain_id: str
+    created_at: str
+    # Populated domain name when the server expands the relation.
+    domain: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> Suppression:
+        domain_raw = d.get("domain")
+        domain = (
+            domain_raw.get("domain")
+            if isinstance(domain_raw, dict)
+            else domain_raw
+        )
+        return cls(
+            id=d["id"],
+            email=d.get("email", ""),
+            reason=d.get("reason", ""),
+            domain_id=d.get("domainId", d.get("domain_id", "")),
+            created_at=d.get("createdAt", d.get("created_at", "")),
+            domain=domain,
+        )
+
+
+# ── Webhooks ────────────────────────────────────────────────────────────────
+
+
+@dataclass
+class Webhook:
+    id: str
+    url: str
+    events: list[str]
+    active: bool
+    domain_id: str
+    created_at: str
+    updated_at: str
+    # Returned ONLY on create — store it for HMAC verification.
+    secret: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> Webhook:
+        return cls(
+            id=d["id"],
+            url=d.get("url", ""),
+            events=d.get("events", []),
+            active=d.get("active", False),
+            domain_id=d.get("domainId", d.get("domain_id", "")),
+            secret=d.get("secret"),
+            created_at=d.get("createdAt", d.get("created_at", "")),
+            updated_at=d.get("updatedAt", d.get("updated_at", "")),
+        )
+
+
+@dataclass
+class WebhookDelivery:
+    """One recorded test/replay dispatch row."""
+
+    id: str
+    webhook_id: str
+    company_id: str
+    kind: str  # "test" | "replay"
+    event: str
+    payload: dict[str, Any]
+    url: str
+    response_status: int  # 0 if the request never landed
+    response_body: str  # truncated to 4 KB
+    duration_ms: int
+    status: str  # "success" | "failed" | "pending"
+    triggered_by: str
+    created_at: str
+    error: Optional[str] = None
+    replay_of: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> WebhookDelivery:
+        return cls(
+            id=d["id"],
+            webhook_id=d.get("webhookId", d.get("webhook_id", "")),
+            company_id=d.get("companyId", d.get("company_id", "")),
+            kind=d.get("kind", ""),
+            event=d.get("event", ""),
+            payload=d.get("payload") or {},
+            url=d.get("url", ""),
+            response_status=d.get("responseStatus", d.get("response_status", 0)),
+            response_body=d.get("responseBody", d.get("response_body", "")),
+            duration_ms=d.get("durationMs", d.get("duration_ms", 0)),
+            status=d.get("status", ""),
+            error=d.get("error"),
+            replay_of=d.get("replayOf", d.get("replay_of")),
+            triggered_by=d.get("triggeredBy", d.get("triggered_by", "")),
+            created_at=d.get("createdAt", d.get("created_at", "")),
+        )
+
+
+@dataclass
+class WebhookDeliveryListResult:
+    items: list[WebhookDelivery]
+    total: int
+    page: int
+    limit: int
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> WebhookDeliveryListResult:
+        return cls(
+            items=[WebhookDelivery.from_dict(i) for i in d.get("items", [])],
+            total=d.get("total", 0),
+            page=d.get("page", 0),
+            limit=d.get("limit", 0),
+        )
+
+
+@dataclass
+class WebhookDispatchResult:
+    delivery_id: str
+    response_status: int
+    duration_ms: int
+    status: str  # "success" | "failed"
+    error: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> WebhookDispatchResult:
+        return cls(
+            delivery_id=d.get("deliveryId", d.get("delivery_id", "")),
+            response_status=d.get("responseStatus", d.get("response_status", 0)),
+            duration_ms=d.get("durationMs", d.get("duration_ms", 0)),
+            status=d.get("status", ""),
+            error=d.get("error"),
+        )
+
+
+# ── Mail logs ───────────────────────────────────────────────────────────────
+
+
+@dataclass
+class MailLog:
+    id: str
+    to: str
+    from_addr: str
+    subject: str
+    status: str  # "queued" | "processing" | "sent" | "bounced" | "failed"
+    message_id: Optional[str]
+    domain_id: str
+    template_id: Optional[str]
+    variables: Optional[dict[str, Any]]
+    sent_at: Optional[str]
+    bounced_at: Optional[str]
+    error: Optional[str]
+    created_at: str
+    domain: Optional[str] = None
+    scheduled_at: Optional[str] = None
+    opened_at: Optional[str] = None
+    clicked_at: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> MailLog:
+        domain_raw = d.get("domain")
+        domain = (
+            domain_raw.get("domain")
+            if isinstance(domain_raw, dict)
+            else domain_raw
+        )
+        return cls(
+            id=d["id"],
+            to=d.get("to", ""),
+            from_addr=d.get("from", d.get("from_addr", "")),
+            subject=d.get("subject", ""),
+            status=d.get("status", ""),
+            message_id=d.get("messageId", d.get("message_id")),
+            domain_id=d.get("domainId", d.get("domain_id", "")),
+            domain=domain,
+            template_id=d.get("templateId", d.get("template_id")),
+            variables=d.get("variables"),
+            scheduled_at=d.get("scheduledAt", d.get("scheduled_at")),
+            sent_at=d.get("sentAt", d.get("sent_at")),
+            bounced_at=d.get("bouncedAt", d.get("bounced_at")),
+            opened_at=d.get("openedAt", d.get("opened_at")),
+            clicked_at=d.get("clickedAt", d.get("clicked_at")),
+            error=d.get("error"),
+            created_at=d.get("createdAt", d.get("created_at", "")),
+        )
+
+
+# ── WhatsApp ────────────────────────────────────────────────────────────────
+
+
+@dataclass
+class WhatsAppNumber:
+    session_id: str
+    phone_number: Optional[str]
+    label: Optional[str]
+    status: str
+    # Convenience: status == "connected". Only connected numbers can send.
+    connected: bool
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> WhatsAppNumber:
+        return cls(
+            session_id=d.get("sessionId", d.get("session_id", "")),
+            phone_number=d.get("phoneNumber", d.get("phone_number")),
+            label=d.get("label"),
+            status=d.get("status", ""),
+            connected=d.get("connected", False),
+        )
+
+
+@dataclass
+class WhatsAppTemplate:
+    id: str
+    name: str
+    # Message body with {{variable}} placeholders.
+    body: str
+    # Variable names extracted server-side from the body.
+    variables: list[str]
+    media_url: Optional[str]
+    category: Optional[str]
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> WhatsAppTemplate:
+        return cls(
+            id=d["id"],
+            name=d.get("name", ""),
+            body=d.get("body", ""),
+            variables=d.get("variables", []),
+            media_url=d.get("mediaUrl", d.get("media_url")),
+            category=d.get("category"),
+            created_at=d.get("createdAt", d.get("created_at", "")),
+            updated_at=d.get("updatedAt", d.get("updated_at", "")),
+        )
+
+
+@dataclass
+class WhatsAppAudienceEntry:
+    phone: str
+    variables: Optional[dict[str, str]] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> WhatsAppAudienceEntry:
+        return cls(phone=d.get("phone", ""), variables=d.get("variables"))
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"phone": self.phone}
+        if self.variables is not None:
+            out["variables"] = self.variables
+        return out
+
+
+@dataclass
+class WhatsAppAudience:
+    id: str
+    name: str
+    description: Optional[str]
+    entries: list[WhatsAppAudienceEntry]
+    entry_count: int
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> WhatsAppAudience:
+        return cls(
+            id=d["id"],
+            name=d.get("name", ""),
+            description=d.get("description"),
+            entries=[
+                WhatsAppAudienceEntry.from_dict(e)
+                for e in d.get("entries", [])
+                if isinstance(e, dict)
+            ],
+            entry_count=d.get("entryCount", d.get("entry_count", 0)),
+            created_at=d.get("createdAt", d.get("created_at", "")),
+            updated_at=d.get("updatedAt", d.get("updated_at", "")),
+        )
+
+
+@dataclass
+class WhatsAppSendResultItem:
+    to: str
+    status: str  # "sent" | "failed"
+    wa_message_id: Optional[str] = None
+    error: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> WhatsAppSendResultItem:
+        return cls(
+            to=d.get("to", ""),
+            status=d.get("status", ""),
+            wa_message_id=d.get("waMessageId", d.get("wa_message_id")),
+            error=d.get("error"),
+        )
+
+
+@dataclass
+class WhatsAppSendResult:
+    total: int
+    sent: int
+    failed: int
+    results: list[WhatsAppSendResultItem]
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> WhatsAppSendResult:
+        return cls(
+            total=d.get("total", 0),
+            sent=d.get("sent", 0),
+            failed=d.get("failed", 0),
+            results=[
+                WhatsAppSendResultItem.from_dict(r) for r in d.get("results", [])
+            ],
+        )
+
+
+@dataclass
+class WhatsAppLog:
+    id: str
+    session_id: str
+    to: str
+    template_id: Optional[str]
+    audience_id: Optional[str]
+    status: str  # "queued" | "sent" | "failed"
+    wa_message_id: Optional[str]
+    error: Optional[str]
+    created_at: str
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> WhatsAppLog:
+        return cls(
+            id=d["id"],
+            session_id=d.get("sessionId", d.get("session_id", "")),
+            to=d.get("to", ""),
+            template_id=d.get("templateId", d.get("template_id")),
+            audience_id=d.get("audienceId", d.get("audience_id")),
+            status=d.get("status", ""),
+            wa_message_id=d.get("waMessageId", d.get("wa_message_id")),
+            error=d.get("error"),
+            created_at=d.get("createdAt", d.get("created_at", "")),
+        )
+
+
+@dataclass
+class WhatsAppLogListResult:
+    data: list[WhatsAppLog]
+    page: int
+    limit: int
+    total: int
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> WhatsAppLogListResult:
+        return cls(
+            data=[WhatsAppLog.from_dict(x) for x in d.get("data", [])],
+            page=d.get("page", 0),
+            limit=d.get("limit", 0),
+            total=d.get("total", 0),
         )

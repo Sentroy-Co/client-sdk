@@ -60,12 +60,23 @@ class MediaResource:
         alt: Optional[str] = None,
         caption: Optional[str] = None,
         tags: Optional[list[str]] = None,
+        compress_video: Optional[bool] = None,
+        transcode_video: Optional[bool] = None,
     ) -> Media:
         """Upload a file to a bucket.
 
         ``body`` can be raw bytes, a file path (str), or a binary file-like
         object. Returns the full serialized media record (including ``url``
         and ``downloadUrl`` when serving from a public bucket).
+
+        ``compress_video=True`` runs a light single-pass H.264 re-encode of
+        the source video (sync — roughly doubles upload latency). Ignored on
+        non-video uploads.
+
+        ``transcode_video=True`` requests the async multi-quality ladder
+        (144p/480p/720p/1080p); implies ``compress_video``. The response
+        returns immediately with ``processing.status == "queued"`` — poll
+        ``media.get`` until ``processing.status`` is ``completed``/``failed``.
         """
         if isinstance(body, str):
             if not os.path.isfile(body):
@@ -80,7 +91,12 @@ class MediaResource:
             content = body.read()
 
         if filename is None:
-            filename = "upload.bin"
+            # TS paritesi: File/Blob adı → dosya nesnesinin .name'i → "upload.bin".
+            name_attr = getattr(body, "name", None)
+            if isinstance(name_attr, str) and name_attr:
+                filename = os.path.basename(name_attr)
+            else:
+                filename = "upload.bin"
 
         fields: dict[str, str] = {}
         if folder is not None:
@@ -93,6 +109,10 @@ class MediaResource:
             fields["caption"] = caption
         if tags:
             fields["tags"] = ",".join(tags)
+        if compress_video:
+            fields["compressVideo"] = "true"
+        if transcode_video:
+            fields["transcodeVideo"] = "true"
 
         data = self._http.post_multipart(
             f"/buckets/{urllib.parse.quote(bucket_slug, safe='')}/media",

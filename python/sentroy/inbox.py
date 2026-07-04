@@ -78,10 +78,12 @@ class InboxResource:
         folder: Optional[str] = None,
     ) -> None:
         """Mark a message as read."""
-        self._http.post(f"/inbox/{uid}/read", {
-            "mailbox": mailbox,
-            "folder": folder,
-        })
+        body: dict[str, Any] = {}
+        if mailbox is not None:
+            body["mailbox"] = mailbox
+        if folder is not None:
+            body["folder"] = folder
+        self._http.post(f"/inbox/{uid}/read", body)
 
     def mark_as_unread(
         self,
@@ -105,11 +107,12 @@ class InboxResource:
         mailbox: Optional[str] = None,
     ) -> None:
         """Move a message to another folder."""
-        self._http.post(f"/inbox/{uid}/move", {
-            "to": to,
-            "from": from_folder,
-            "mailbox": mailbox,
-        })
+        body: dict[str, Any] = {"to": to}
+        if from_folder is not None:
+            body["from"] = from_folder
+        if mailbox is not None:
+            body["mailbox"] = mailbox
+        self._http.post(f"/inbox/{uid}/move", body)
 
     def delete(
         self,

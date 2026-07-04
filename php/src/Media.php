@@ -69,6 +69,13 @@ class Media
      *     @type string $alt          Optional
      *     @type string $caption      Optional
      *     @type array  $tags         Optional
+     *     @type bool   $compress_video  Optional — synchronous single-pass
+     *                                    H.264 re-encode at source resolution
+     *     @type bool   $transcode_video Optional — async 144p/480p/720p/1080p
+     *                                    variant ladder (implies compress).
+     *                                    Response returns immediately with
+     *                                    processing.status === "queued"; poll
+     *                                    get() while variants fill in.
      * }
      * @return array  The serialized media record.
      */
@@ -100,6 +107,15 @@ class Media
         }
         if (isset($params['tags']) && is_array($params['tags'])) {
             $fields['tags'] = implode(',', $params['tags']);
+        }
+        // Video processing opt-ins. The backend ignores these for
+        // non-video uploads; we still gate on truthiness to keep the
+        // form payload clean.
+        if (!empty($params['compress_video'])) {
+            $fields['compressVideo'] = 'true';
+        }
+        if (!empty($params['transcode_video'])) {
+            $fields['transcodeVideo'] = 'true';
         }
 
         return $this->http->postMultipart(

@@ -157,6 +157,19 @@ class HttpClient
     }
 
     /**
+     * DELETE with a JSON body. Some endpoints (e.g. audience list member
+     * removal) identify the target in the request body instead of the URL.
+     *
+     * @param string $path
+     * @param mixed  $body
+     * @return mixed
+     */
+    public function deleteWithBody($path, $body = null)
+    {
+        return $this->request('DELETE', $path, array('body' => $body));
+    }
+
+    /**
      * Multipart/form-data upload. $file is an array with:
      *   - name     (string) — form field name, conventionally "file"
      *   - filename (string) — how the server sees the file name

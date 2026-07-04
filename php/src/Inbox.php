@@ -84,10 +84,14 @@ class Inbox
      */
     public function markAsRead($uid, array $options = array())
     {
-        $this->http->post('/inbox/' . $uid . '/read', array(
-            'mailbox' => isset($options['mailbox']) ? $options['mailbox'] : null,
-            'folder' => isset($options['folder']) ? $options['folder'] : null,
-        ));
+        $body = array();
+        if (isset($options['mailbox'])) {
+            $body['mailbox'] = $options['mailbox'];
+        }
+        if (isset($options['folder'])) {
+            $body['folder'] = $options['folder'];
+        }
+        $this->http->post('/inbox/' . $uid . '/read', $body);
     }
 
     /**
@@ -116,11 +120,14 @@ class Inbox
      */
     public function move($uid, $to, array $options = array())
     {
-        $this->http->post('/inbox/' . $uid . '/move', array(
-            'to' => $to,
-            'from' => isset($options['from']) ? $options['from'] : null,
-            'mailbox' => isset($options['mailbox']) ? $options['mailbox'] : null,
-        ));
+        $body = array('to' => $to);
+        if (isset($options['from'])) {
+            $body['from'] = $options['from'];
+        }
+        if (isset($options['mailbox'])) {
+            $body['mailbox'] = $options['mailbox'];
+        }
+        $this->http->post('/inbox/' . $uid . '/move', $body);
     }
 
     /**

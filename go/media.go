@@ -92,6 +92,12 @@ func (s *MediaService) Upload(bucketSlug string, params UploadMediaParams) (*Med
 		}
 		fields = append(fields, multipartField{name: "tags", text: joined})
 	}
+	if params.CompressVideo {
+		fields = append(fields, multipartField{name: "compressVideo", text: "true"})
+	}
+	if params.TranscodeVideo {
+		fields = append(fields, multipartField{name: "transcodeVideo", text: "true"})
+	}
 
 	m, err := postMultipart[Media](s.h,
 		"/buckets/"+url.PathEscape(bucketSlug)+"/media", fields)
