@@ -262,6 +262,31 @@ async function downloadFile(
     input,
   );
 }
+async function downloadCredential(
+  getToken: () => Promise<string>,
+  signal: AbortSignal,
+): Promise<string> {
+  if (signal.aborted) throw new SentroyMcpError("mcp_download_aborted");
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      signal.removeEventListener("abort", abort);
+      reject(new SentroyMcpError("mcp_download_aborted"));
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    Promise.resolve()
+      .then(getToken)
+      .then(
+        (token) => {
+          signal.removeEventListener("abort", abort);
+          resolve(token);
+        },
+        (error) => {
+          signal.removeEventListener("abort", abort);
+          reject(error);
+        },
+      );
+  });
+}
 async function authenticatedDownload(
   target: URL,
   getToken: () => Promise<string>,
@@ -284,7 +309,7 @@ async function authenticatedDownload(
   };
   let response: Response | undefined;
   try {
-    const token = await getToken();
+    const token = await downloadCredential(getToken, controller.signal);
     if (controller.signal.aborted)
       throw new SentroyMcpError("mcp_download_aborted");
     response = await fetcher(target, {

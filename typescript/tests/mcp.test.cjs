@@ -218,3 +218,13 @@ test('Mail stream bounds survive mutable references, gzip wire lengths and incom
   const truncated = await connectSentroyMcp(options({ app: 'mail', fetch: async (input, init) => new URL(String(input)).pathname.includes('/attachments/') ? new Response('four', { headers: { 'content-length': '5' } }) : fetch(input, init) }))
   try { const response = await truncated.downloadMailAttachment(mailReference(truncated.resource)); await assert.rejects(response.text(), SentroyMcpError) } finally { await truncated.close() }
 })
+
+test('download deadline also bounds a stalled credential provider before any HTTP request', async () => {
+  let stalled = false, downloads = 0
+  const connection = await connectSentroyMcp(options({ app: 'mail', token: () => stalled ? new Promise(() => {}) : personal, fetch: (input, init) => { if (new URL(String(input)).pathname.includes('/attachments/')) downloads++; return fetch(input, init) } }))
+  try {
+    stalled = true
+    await assert.rejects(connection.downloadMailAttachment(mailReference(connection.resource), { timeoutMs: 10 }), error => error.code === 'mcp_download_aborted')
+    assert.equal(downloads, 0)
+  } finally { stalled = false; await connection.close() }
+})

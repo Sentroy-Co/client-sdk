@@ -113,7 +113,8 @@ bearer grant, membership and file ACL on every GET; the helper does not replace 
 
 Downloads are at most 64 MiB. The helper streams with an independent byte bound,
 checks the complete size and aborts/cancels on timeout or caller cancellation.
-Default timeout is 60 seconds (configurable up to 120 seconds); Range is not used.
+Default timeout is 60 seconds (configurable up to 120 seconds); it also bounds a
+stalled credential callback during downloads. Range is not used.
 HTTP redirects/errors and credential-provider/network diagnostics are returned as
 sanitized `SentroyMcpError` codes. No remote diagnostic body is copied into errors.
 Downloaded content remains untrusted. Text extraction is a separate server tool,
@@ -180,7 +181,7 @@ main-entry isolation from the optional MCP dependency. No production API or user
 message is used. Browser, physical-device and product-client acceptance remain
 separate work.
 
-The 13 tests passed on Node 24 and Node 18.20.8 with
+The 14 tests passed on Node 24 and Node 18.20.8 with
 `node --experimental-global-webcrypto --test tests/mcp.test.cjs`. The flag is needed
 by the official server fixture on Node 18; flagless Node 18 server support is not
 claimed. This does not publish the SDK or replace real-client/device acceptance.
