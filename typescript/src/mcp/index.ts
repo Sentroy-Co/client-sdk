@@ -23,11 +23,22 @@ export interface SentroyMcpDownloadReference {
   method: "GET";
   file: { id: string; size: number };
 }
+export interface SentroyMcpMailAttachmentReference {
+  downloadUrl: string;
+  requiresAuthorization: true;
+  method: "GET";
+  attachment: { partId: string; encodedSize: number };
+  maxBytes: number;
+}
 export interface SentroyMcpConnection {
   client: Client;
   resource: string;
   downloadFile(
     reference: SentroyMcpDownloadReference,
+    options?: { signal?: AbortSignal; timeoutMs?: number },
+  ): Promise<Response>;
+  downloadMailAttachment(
+    reference: SentroyMcpMailAttachmentReference,
     options?: { signal?: AbortSignal; timeoutMs?: number },
   ): Promise<Response>;
   close(): Promise<void>;
@@ -179,6 +190,15 @@ export async function connectSentroyMcp(
     close: () => client.close(),
     downloadFile: (reference, input) =>
       downloadFile(app, resource, getToken, fetcher, reference, input),
+    downloadMailAttachment: (reference, input) =>
+      downloadMailAttachment(
+        app,
+        resource,
+        getToken,
+        fetcher,
+        reference,
+        input,
+      ),
   };
 }
 function downloadTarget(resource: URL, reference: SentroyMcpDownloadReference) {
@@ -233,9 +253,24 @@ async function downloadFile(
 ) {
   if (app !== "storage")
     throw new SentroyMcpError("mcp_download_not_supported");
-  const target = downloadTarget(resource, reference),
-    expectedSize = reference.file.size,
-    timeoutMs = input?.timeoutMs ?? 60000;
+  const target = downloadTarget(resource, reference);
+  return authenticatedDownload(
+    target,
+    getToken,
+    fetcher,
+    { expectedSize: reference.file.size, maxBytes: maxDownloadBytes },
+    input,
+  );
+}
+async function authenticatedDownload(
+  target: URL,
+  getToken: () => Promise<string>,
+  fetcher: typeof fetch,
+  policy: { expectedSize?: number; maxBytes: number },
+  input?: { signal?: AbortSignal; timeoutMs?: number },
+) {
+  let expectedSize = policy.expectedSize;
+  const timeoutMs = input?.timeoutMs ?? 60000;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120000)
     throw new SentroyMcpError("invalid_mcp_timeout");
   const controller = new AbortController(),
@@ -262,13 +297,21 @@ async function downloadFile(
     if (response.status !== 200)
       throw new SentroyMcpError("mcp_download_failed", response.status);
     const declared = response.headers.get("content-length");
+    const identityEncoding =
+      !response.headers.get("content-encoding") ||
+      response.headers.get("content-encoding")?.toLowerCase() === "identity";
     if (
+      identityEncoding &&
       declared !== null &&
-      (!/^\d+$/.test(declared) || Number(declared) !== expectedSize)
+      (!/^\d+$/.test(declared) ||
+        Number(declared) > policy.maxBytes ||
+        (expectedSize !== undefined && Number(declared) !== expectedSize))
     )
       throw new SentroyMcpError("mcp_download_size_mismatch");
+    if (identityEncoding && expectedSize === undefined && declared !== null)
+      expectedSize = Number(declared);
     if (!response.body) {
-      if (expectedSize !== 0)
+      if (expectedSize !== undefined && expectedSize !== 0)
         throw new SentroyMcpError("mcp_download_size_mismatch");
       cleanup();
       return new Response(null, {
@@ -289,14 +332,17 @@ async function downloadFile(
         try {
           const part = await reader.read();
           if (part.done) {
-            if (count !== expectedSize)
+            if (expectedSize !== undefined && count !== expectedSize)
               throw new SentroyMcpError("mcp_download_size_mismatch");
             output.close();
             finish();
             return;
           }
           count += part.value.byteLength;
-          if (count > expectedSize || count > maxDownloadBytes)
+          if (
+            (expectedSize !== undefined && count > expectedSize) ||
+            count > policy.maxBytes
+          )
             throw new SentroyMcpError("mcp_download_size_mismatch");
           output.enqueue(part.value);
         } catch {
@@ -317,7 +363,9 @@ async function downloadFile(
         "Content-Type": "application/octet-stream",
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
-        "Content-Length": String(expectedSize),
+        ...(expectedSize === undefined
+          ? {}
+          : { "Content-Length": String(expectedSize) }),
       },
     });
   } catch (error) {
@@ -327,4 +375,109 @@ async function downloadFile(
     if (error instanceof SentroyMcpError) throw error;
     throw new SentroyMcpError("mcp_download_failed");
   }
+}
+
+function mailDownloadTarget(
+  resource: URL,
+  reference: SentroyMcpMailAttachmentReference,
+) {
+  if (!reference) throw new SentroyMcpError("invalid_mcp_download");
+  const { downloadUrl, requiresAuthorization, method, maxBytes, attachment } =
+    reference;
+  const encodedSize = attachment?.encodedSize,
+    partId = attachment?.partId;
+  if (
+    requiresAuthorization !== true ||
+    method !== "GET" ||
+    typeof downloadUrl !== "string" ||
+    downloadUrl.length > 5000 ||
+    !Number.isSafeInteger(maxBytes) ||
+    maxBytes < 1 ||
+    maxBytes > 8 * 1024 * 1024 ||
+    !Number.isSafeInteger(encodedSize) ||
+    encodedSize < 0 ||
+    encodedSize > 12 * 1024 * 1024 ||
+    typeof partId !== "string" ||
+    !/^\d+(?:\.\d+)*$/.test(partId) ||
+    partId.length > 80
+  )
+    throw new SentroyMcpError("invalid_mcp_download");
+  let target: URL;
+  try {
+    target = new URL(downloadUrl);
+  } catch {
+    throw new SentroyMcpError("invalid_mcp_download");
+  }
+  assertTarget(target, resource.origin);
+  const prefix = resource.pathname + "/attachments/",
+    encoded = target.pathname.startsWith(prefix)
+      ? target.pathname.slice(prefix.length)
+      : "",
+    keys = [...target.searchParams.keys()];
+  if (
+    !/^[A-Za-z0-9_-]{1,2500}$/.test(encoded) ||
+    keys.length !== 2 ||
+    new Set(keys).size !== 2 ||
+    keys.some((key) => !["connection", "version"].includes(key)) ||
+    !objectId.test(target.searchParams.get("connection") ?? "") ||
+    !/^[a-f\d]{64}$/.test(target.searchParams.get("version") ?? "")
+  )
+    throw new SentroyMcpError("invalid_mcp_download");
+  try {
+    const raw = atob(encoded.replace(/-/g, "+").replace(/_/g, "/")),
+      decoded = JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(
+          Uint8Array.from(raw, (char) => char.charCodeAt(0)),
+        ),
+      ) as Record<string, unknown>;
+    const ref = decoded.reference as Record<string, unknown>;
+    if (
+      !decoded ||
+      Object.keys(decoded).sort().join(",") !== "partId,reference" ||
+      decoded.partId !== partId ||
+      !ref ||
+      Object.keys(ref).sort().join(",") !==
+        "companyId,folder,mailbox,uid,uidValidity" ||
+      typeof ref.companyId !== "string" ||
+      !ref.companyId ||
+      ref.companyId.length > 100 ||
+      /[\r\n\0]/.test(ref.companyId) ||
+      typeof ref.mailbox !== "string" ||
+      ref.mailbox.length > 320 ||
+      !/^[^\s@]+@[^\s@]+$/.test(ref.mailbox) ||
+      typeof ref.folder !== "string" ||
+      !ref.folder ||
+      ref.folder.length > 512 ||
+      ref.folder.startsWith("__") ||
+      /[\r\n\0]/.test(ref.folder) ||
+      typeof ref.uidValidity !== "string" ||
+      !/^[1-9]\d{0,19}$/.test(ref.uidValidity) ||
+      typeof ref.uid !== "number" ||
+      !Number.isInteger(ref.uid) ||
+      ref.uid < 1 ||
+      ref.uid > 4294967295
+    )
+      throw Error("invalid");
+  } catch {
+    throw new SentroyMcpError("invalid_mcp_download");
+  }
+  return { target, maxBytes };
+}
+async function downloadMailAttachment(
+  app: SentroyMcpApp,
+  resource: URL,
+  getToken: () => Promise<string>,
+  fetcher: typeof fetch,
+  reference: SentroyMcpMailAttachmentReference,
+  input?: { signal?: AbortSignal; timeoutMs?: number },
+) {
+  if (app !== "mail") throw new SentroyMcpError("mcp_download_not_supported");
+  const selected = mailDownloadTarget(resource, reference);
+  return authenticatedDownload(
+    selected.target,
+    getToken,
+    fetcher,
+    { maxBytes: selected.maxBytes },
+    input,
+  );
 }

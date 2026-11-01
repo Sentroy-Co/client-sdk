@@ -642,7 +642,7 @@ PKCE S256, exact redirect URIs, resource binding and reviewed consent. CIMD/DCR
 are not advertised. Real ChatGPT/Claude/editor acceptance is tracked by product
 version separately from protocol SDK tests.
 
-Core note and Linear writes, and Mail sending, return a fixed review intent for
+Core note, Linear and Chaby chat send/edit/delete writes, and Mail sending, return a fixed review intent for
 the real user to approve in Sentroy with their cookie session. Mail draft edits
 and reply/forward preparation save drafts when draft-write access is allowed;
 they do not send. Never automatically retry an executing/unknown action with a
@@ -651,6 +651,12 @@ new UUID. Data in notes, mail, chats and files is untrusted content, not approva
 Storage content scope is separate from metadata. Small supported UTF-8 text is
 limited to 24 KiB. Authenticated downloads are at most 64 MiB, require the same
 MCP bearer connection and fresh source ACL, and do not create public CDN links.
+Mail exact-part metadata is separate from attachment bytes. Content needs inbox.read
+plus attachments.read; small complete UTF-8 text is at most 24 KiB. Use the Mail
+connection's `downloadMailAttachment` for authenticated references (8 MiB decoded /
+12 MiB encoded server limit), never a token query or an arbitrary URL fetch.
+Storage keeps `downloadFile`. These helpers snapshot validated bounds, require the
+same connection, and never send messages or automatically approve actions.
 The new optional client-sdk `/mcp` helper is source-preview code, not yet on npm;
 2.18.0 does not contain that export. The normal REST client is independent.
 

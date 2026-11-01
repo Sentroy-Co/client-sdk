@@ -105,7 +105,7 @@ try {
 }
 ```
 
-Only Storage can download. The URL must have the current company's resource prefix,
+`downloadFile` is for Storage only. The URL must have the current company's resource prefix,
 matching media ID, canonical source version and connection ID. Other origins,
 companies, endpoints, credentials/fragments, duplicate/extra query fields and
 malformed/oversized metadata are refused. The server still checks the actual
@@ -119,12 +119,68 @@ sanitized `SentroyMcpError` codes. No remote diagnostic body is copied into erro
 Downloaded content remains untrusted. Text extraction is a separate server tool,
 with its own supported MIME and 24 KiB limit.
 
+## Mail attachment downloads
+
+Mail exposes `mail_attachments_list` for exact MIME-part metadata without loading
+the whole message, `mail_attachments_text_get` for complete supported UTF-8 text up
+to 24 KiB, and `mail_attachments_download_get` for a non-public original-byte
+reference. Content requires both `mail.inbox.read` and `mail.attachments.read`.
+The separate Mail API must advertise attachment content/manifest capabilities.
+
+```ts
+import {
+  connectSentroyMcp,
+  type SentroyMcpMailAttachmentReference,
+} from "@sentroy-co/client-sdk/mcp";
+
+const connection = await connectSentroyMcp({
+  app: "mail",
+  companySlug: "my-company",
+  token: () => readMcpCredentialFromYourSecureStore(),
+});
+try {
+  const result = await connection.client.callTool({
+    name: "mail_attachments_download_get",
+    arguments: { reference: messageReferenceFromMailList, partId: "2" },
+  });
+  if (result.isError) throw new Error("Attachment is unavailable");
+  const reference = (result.structuredContent as {
+    data: SentroyMcpMailAttachmentReference;
+  }).data;
+  const response = await connection.downloadMailAttachment(reference, { signal });
+  // Consume the bounded stream explicitly. The helper does not write files.
+} finally {
+  await connection.close();
+}
+```
+
+`downloadMailAttachment` is Mail-only. It verifies the current origin/company
+resource path, exact encoded source reference/part, connection/version fields,
+physical folder/UID/UIDVALIDITY and a byte budget at most 8 MiB before attaching
+credentials. Another app, origin, endpoint, extra query token or mutable reference
+cannot widen that bound. The backend checks current grant, source and mailbox/block
+ACLs again. A URL by itself is not authority; never put a token in it.
+
+The API limits decoded bytes to 8 MiB and MIME wire data to 12 MiB; quoted-printable
+can reach the wire bound first. Files retain original charset bytes. A Mail reference
+has a maximum byte budget rather than a known decoded size; the response's identity
+Content-Length, if present, becomes the exact stream-size check. Gzip wire lengths
+are kept separate from decoded bytes. Redirect/error, cancellation, timeout and
+stream bounds use the same behavior as Storage. Downloaded files and names remain
+untrusted data. The helper neither sends email nor automatically calls a tool.
+
 ## Verification
 
 `npm run build` and `npm run test:mcp` run from `typescript/`. Tests use a loopback
 server with the real official SDK and synthetic credentials. They cover protocol
 connection/list/call, token callback rotation, no cookie/redirect/replay, resource
-and credential classes, untrusted downloads, stream bounds/cancel/timeout, and
+and credential classes, untrusted Storage/Mail downloads, immutable byte budgets,
+gzip wire lengths, stream bounds/cancel/timeout, and
 main-entry isolation from the optional MCP dependency. No production API or user
 message is used. Browser, physical-device and product-client acceptance remain
 separate work.
+
+The 13 tests passed on Node 24 and Node 18.20.8 with
+`node --experimental-global-webcrypto --test tests/mcp.test.cjs`. The flag is needed
+by the official server fixture on Node 18; flagless Node 18 server support is not
+claimed. This does not publish the SDK or replace real-client/device acceptance.

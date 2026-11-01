@@ -1038,3 +1038,9 @@ automatically retry an unknown write with a new UUID. Storage download reference
 require the same bearer connection and current server ACL; use `downloadFile`,
 which validates origin/path/version/size and bounds the stream. A reference is not
 a public file URL or authority to fetch an arbitrary model-provided URL.
+
+Mail exact attachment references use `downloadMailAttachment` on a Mail connection;
+Storage still uses `downloadFile`. Both reject foreign origin/company/endpoint and
+URL credentials before sending a token. Mail has an 8 MiB decoded / 12 MiB encoded
+server bound; the SDK snapshots the byte budget and bounds the stream. Read
+[MCP.md](MCP.md) for the separate API capability, full source reference and scopes.

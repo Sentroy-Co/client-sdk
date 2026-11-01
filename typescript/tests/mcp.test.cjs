@@ -1,12 +1,14 @@
 const { test, before, after } = require('node:test')
 const assert = require('node:assert/strict')
 const http = require('node:http')
+const { gzipSync } = require('node:zlib')
 const { spawnSync } = require('node:child_process')
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js')
 const { WebStandardStreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js')
 const { z } = require('zod')
 const { connectSentroyMcp, sentroyMcpResource, sentroyMcpResourceMetadata, SentroyMcpError } = require('@sentroy-co/client-sdk/mcp')
 const personal = 'mcp_' + 'a'.repeat(43), access = 'mcp_at_' + 'b'.repeat(43), id = '1'.repeat(24), connectionId = '2'.repeat(24)
+let mailGzip = false
 let origin, server, acceptedToken = personal, executions = 0, requests = []
 before(async () => {
   server = http.createServer(async (request, output) => {
@@ -15,6 +17,7 @@ before(async () => {
       requests.push({ path: url.pathname, authorization: request.headers.authorization, cookie: request.headers.cookie })
       if (request.headers.authorization !== `Bearer ${acceptedToken}`) { output.writeHead(401); output.end('unauthorized'); return }
       if (url.pathname.startsWith('/mcp/acme/files/assets/')) { output.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': 5 }); output.end('Hello'); return }
+      if (url.pathname.startsWith('/mcp/acme/attachments/')) { const content = mailGzip ? gzipSync(Buffer.from('Hello')) : Buffer.from('Hello'); output.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': content.length, ...(mailGzip ? { 'content-encoding': 'gzip' } : {}) }); output.end(content); return }
       if (url.pathname !== '/mcp/acme') { output.writeHead(404); output.end(); return }
       if (request.method !== 'POST') { output.writeHead(405); output.end(); return }
       const chunks = []
@@ -162,4 +165,56 @@ test('main REST entry does not import or require the optional MCP SDK', () => {
   const script = `const Module=require('node:module');const load=Module._load;Module._load=function(id,...args){if(id.startsWith('@modelcontextprotocol/'))throw Error('MCP must stay optional');return load.call(this,id,...args)};if(typeof require('./dist/index.js').Sentroy!=='function')process.exit(1)`
   const result = spawnSync(process.execPath, ['-e', script], { cwd: new URL('../', 'file://' + __filename), encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr)
+})
+
+const mailReference = (resource, patch = {}) => {
+  const payload = { reference: { companyId: id, mailbox: 'mine@example.test', folder: 'INBOX', uid: 5, uidValidity: '88', ...patch }, partId: '2' }
+  return { method: 'GET', requiresAuthorization: true, maxBytes: 8 * 1024 * 1024, attachment: { partId: '2', encodedSize: 8 }, downloadUrl: `${resource}/attachments/${Buffer.from(JSON.stringify(payload)).toString('base64url')}?connection=${connectionId}&version=${'a'.repeat(64)}` }
+}
+test('Mail attachment download uses exact same-origin company/reference/connection and current credential without calling tools', async () => {
+  acceptedToken = personal; const initial = executions
+  let current = personal
+  const connection = await connectSentroyMcp(options({ app: 'mail', token: () => current }))
+  try {
+    const ref = mailReference(connection.resource)
+    current = access; acceptedToken = access
+    const response = await connection.downloadMailAttachment(ref)
+    assert.equal(await response.text(), 'Hello'); assert.equal(response.headers.get('cache-control'), 'no-store'); assert.equal(response.headers.get('content-type'), 'application/octet-stream')
+    assert.equal(requests.at(-1).authorization, `Bearer ${access}`); assert.equal(requests.at(-1).cookie, undefined); assert.equal(executions, initial)
+    await assert.rejects(connection.downloadFile(reference(connection.resource)), error => error.code === 'mcp_download_not_supported')
+  } finally { await connection.close(); acceptedToken = personal }
+})
+test('untrusted Mail references cannot use another origin/company/endpoint, virtual folder, extra query token, part or larger byte budget', async () => {
+  const connection = await connectSentroyMcp(options({ app: 'mail' })), initial = requests.length, ref = mailReference(connection.resource)
+  try {
+    const cases = [
+      { ...ref, downloadUrl: ref.downloadUrl.replace(origin, 'https://evil.test') },
+      { ...ref, downloadUrl: ref.downloadUrl.replace('/mcp/acme/', '/mcp/other/') },
+      { ...ref, downloadUrl: `${origin}/api/admin` },
+      { ...ref, downloadUrl: ref.downloadUrl + '&token=secret' },
+      { ...ref, downloadUrl: ref.downloadUrl + '#fragment' },
+      { ...ref, downloadUrl: ref.downloadUrl + '&version=' + 'a'.repeat(64) },
+      { ...ref, maxBytes: 8 * 1024 * 1024 + 1 },
+      { ...ref, method: 'POST' },
+      { ...ref, attachment: { ...ref.attachment, partId: '3' } },
+      { ...ref, attachment: { ...ref.attachment, encodedSize: 12 * 1024 * 1024 + 1 } },
+      mailReference(connection.resource, { folder: '__CAT_promotions__' }),
+      mailReference(connection.resource, { uid: 0 }),
+      mailReference(connection.resource, { uidValidity: '0' }),
+    ]
+    for (const item of cases) await assert.rejects(connection.downloadMailAttachment(item), SentroyMcpError)
+    assert.equal(requests.length, initial)
+  } finally { await connection.close() }
+})
+test('Mail stream bounds survive mutable references, gzip wire lengths and incomplete bodies', async () => {
+  let mutable
+  const connection = await connectSentroyMcp(options({ app: 'mail', token: () => { if (mutable) mutable.maxBytes = 8 * 1024 * 1024; return personal } }))
+  try {
+    mutable = { ...mailReference(connection.resource), maxBytes: 3 }
+    await assert.rejects(connection.downloadMailAttachment(mutable), error => error.code === 'mcp_download_size_mismatch')
+    mutable = undefined; mailGzip = true
+    assert.equal(await (await connection.downloadMailAttachment(mailReference(connection.resource))).text(), 'Hello')
+  } finally { mailGzip = false; await connection.close() }
+  const truncated = await connectSentroyMcp(options({ app: 'mail', fetch: async (input, init) => new URL(String(input)).pathname.includes('/attachments/') ? new Response('four', { headers: { 'content-length': '5' } }) : fetch(input, init) }))
+  try { const response = await truncated.downloadMailAttachment(mailReference(truncated.resource)); await assert.rejects(response.text(), SentroyMcpError) } finally { await truncated.close() }
 })
