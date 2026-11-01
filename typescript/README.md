@@ -275,3 +275,12 @@ https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/typescri
 ## License
 
 [MIT](LICENSE)
+
+## MCP (source preview)
+
+The new `@sentroy-co/client-sdk/mcp` entry connects the official MCP client to a
+company/app-scoped resource and validates authenticated Storage downloads. It uses
+personal MCP or externally managed OAuth MCP access credentials, independently
+from the REST `stk_` client. [Connection, credential and download contract](MCP.md).
+This export is on the feature branch and has not been released to npm; the existing
+2.18.0 version must not be presented as already containing it.

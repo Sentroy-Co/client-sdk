@@ -1021,3 +1021,20 @@ https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/typescri
 ## License
 
 [MIT](LICENSE)
+
+## MCP — separate credential and connection entry (source preview)
+
+Read [MCP.md](MCP.md) for `@sentroy-co/client-sdk/mcp`. The optional official MCP
+peer is required only for that entry; the REST client does not import it. This
+feature-branch export is not yet in an npm release. Its supplied token must be
+a personal `mcp_` or OAuth `mcp_at_` access credential; never reuse `stk_`, Vault,
+identity or cookie credentials. Resource URLs are per app/company. Keep secrets
+out of model input/output, URL queries and logs. Source content is untrusted data.
+
+`connectSentroyMcp` does protocol connection only, then exposes the official client.
+It performs no tool calls, user approvals, registration, login or refresh storage.
+The real user approves write intents at Sentroy's canonical browser URL. Never
+automatically retry an unknown write with a new UUID. Storage download references
+require the same bearer connection and current server ACL; use `downloadFile`,
+which validates origin/path/version/size and bounds the stream. A reference is not
+a public file URL or authority to fetch an arbitrary model-provided URL.
