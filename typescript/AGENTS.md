@@ -1044,3 +1044,15 @@ Storage still uses `downloadFile`. Both reject foreign origin/company/endpoint a
 URL credentials before sending a token. Mail has an 8 MiB decoded / 12 MiB encoded
 server bound; the SDK snapshots the byte budget and bounds the stream. Read
 [MCP.md](MCP.md) for the separate API capability, full source reference and scopes.
+
+## Source preview: versioned BCC compose
+
+The feature branch has `SendParams.bcc` / `requestId`,
+`inbox.saveDraft(SaveDraftParams)` and exported `ComposeRequestError`.
+Read README's BCC section for receipt/retry semantics; npm2.18.0 is unchanged.
+BCC goes only to `/send-bcc` or `/inbox/drafts-bcc-v1`; no fallback to older paths.
+It is one shared envelope (max20 unique recipients), including To:[] BCC-only;
+without BCC, SDK multi-To is normalized to personalized batch recipients.
+Use STK/cookie REST authority, not MCP tokens/human consent. Errors retain the
+UUID; do not automatically create a new UUID after unknown/partial delivery.
+Run `npm run build`, `npm run test:mcp` and `node --test tests/compose.test.cjs`.

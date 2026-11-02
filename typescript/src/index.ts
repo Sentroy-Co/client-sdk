@@ -113,6 +113,8 @@ export type {
   Attachment,
   SendParams,
   SendResult,
+  SaveDraftParams,
+  SaveDraftResult,
   Bucket,
   CreateBucketParams,
   UpdateBucketParams,
@@ -180,3 +182,5 @@ export {
   type ThumbnailPreset,
   type ThumbnailSourceMedia,
 } from "./thumbnails"
+
+export { ComposeRequestError } from "./resources/compose-request"

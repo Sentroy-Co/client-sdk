@@ -80,6 +80,7 @@ export class HttpClient {
     options?: {
       query?: Record<string, unknown>
       body?: unknown
+      once?: boolean
     },
   ): Promise<T> {
     const url = this.buildUrl(path, options?.query)
@@ -97,10 +98,50 @@ export class HttpClient {
         headers,
         body: options?.body ? JSON.stringify(options.body) : undefined,
         credentials: this.fetchCredentials,
+        ...(options?.once ? { redirect: "manual" as const } : {}),
         signal: controller.signal,
       })
 
-      const json = (await res.json()) as ApiResponse<T>
+      let json: ApiResponse<T>
+      if (options?.once) {
+        if (
+          (res.status >= 300 && res.status < 400) ||
+          !res.headers
+            .get("content-type")
+            ?.toLowerCase()
+            .startsWith("application/json")
+        ) {
+          await res.body?.cancel()
+          throw new SentroyError(502, null, "Invalid compose receipt")
+        }
+        const reader = res.body?.getReader(),
+          chunks: Uint8Array[] = []
+        if (!reader)
+          throw new SentroyError(502, null, "Missing compose receipt")
+        let bytes = 0
+        try {
+          for (;;) {
+            const chunk = await reader.read()
+            if (chunk.done) break
+            bytes += chunk.value.byteLength
+            if (bytes > 4096)
+              throw new SentroyError(502, null, "Compose receipt too large")
+            chunks.push(chunk.value)
+          }
+        } finally {
+          await reader.cancel().catch(() => {})
+          reader.releaseLock()
+        }
+        const combined = new Uint8Array(bytes)
+        let offset = 0
+        for (const chunk of chunks) {
+          combined.set(chunk, offset)
+          offset += chunk.length
+        }
+        json = JSON.parse(
+          new TextDecoder("utf-8", { fatal: true }).decode(combined),
+        )
+      } else json = (await res.json()) as ApiResponse<T>
 
       if (!res.ok) {
         throw new SentroyError(
@@ -122,6 +163,13 @@ export class HttpClient {
 
   async post<T>(path: string, body?: unknown): Promise<T> {
     return this.request<T>("POST", path, { body })
+  }
+
+  /** Fixed versioned compose paths only, bounded receipt and no HTTP redirect/retry. */
+  async postOnce<T>(path: string, body: unknown): Promise<T> {
+    if (!["/send-bcc", "/inbox/drafts-bcc-v1"].includes(path))
+      throw Error("Invalid compose path")
+    return this.request<T>("POST", path, { body, once: true })
   }
 
   async put<T>(path: string, body?: unknown): Promise<T> {

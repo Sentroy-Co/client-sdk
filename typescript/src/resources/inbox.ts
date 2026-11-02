@@ -1,13 +1,41 @@
 import type { HttpClient } from "../http"
 import type {
+  SaveDraftParams,
+  SaveDraftResult,
   MessageSummary,
   MessageDetail,
   Mailbox,
   InboxListParams,
 } from "../types"
 
+import {
+  composeRequestId,
+  ComposeRequestError,
+  hasBcc,
+} from "./compose-request"
+
 export class Inbox {
   constructor(private http: HttpClient) {}
+
+  /** Save into private IMAP Drafts. Retain a BCC requestId after an uncertain result. */
+  async saveDraft(params: SaveDraftParams): Promise<SaveDraftResult> {
+    if (hasBcc(params.bcc)) {
+      const requestId = composeRequestId(params.requestId)
+      try {
+        return {
+          ...(await this.http.postOnce<SaveDraftResult>(
+            "/inbox/drafts-bcc-v1",
+            { ...params, requestId },
+          )),
+          requestId,
+        }
+      } catch (cause) {
+        throw new ComposeRequestError(requestId, cause)
+      }
+    }
+    const { bcc, requestId, ...body } = params
+    return this.http.post<SaveDraftResult>("/inbox/drafts", body)
+  }
 
   /** List messages in a mailbox folder */
   async list(params?: InboxListParams): Promise<MessageSummary[]> {
