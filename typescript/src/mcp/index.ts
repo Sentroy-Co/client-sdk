@@ -3,6 +3,25 @@ import {
   StreamableHTTPClientTransport,
   StreamableHTTPError,
 } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { SentroyMcpError } from "./errors";
+import { downloadContactExport, uploadContactImport } from "./contact-files";
+import type {
+  SentroyMcpContactExportReference,
+  SentroyMcpContactImportReference,
+  SentroyMcpContactFileBody,
+  SentroyMcpContactImportUploaded,
+} from "./contact-files";
+export { SentroyMcpError } from "./errors";
+export {
+  sentroyMcpContactImportFileInfo,
+  SentroyMcpContactImportError,
+} from "./contact-files";
+export type {
+  SentroyMcpContactExportReference,
+  SentroyMcpContactImportReference,
+  SentroyMcpContactFileBody,
+  SentroyMcpContactImportUploaded,
+} from "./contact-files";
 
 export type SentroyMcpApp = "core" | "mail" | "storage" | "linear" | "chaby";
 export interface SentroyMcpResourceOptions {
@@ -41,16 +60,16 @@ export interface SentroyMcpConnection {
     reference: SentroyMcpMailAttachmentReference,
     options?: { signal?: AbortSignal; timeoutMs?: number },
   ): Promise<Response>;
+  downloadMailContactsExport(
+    reference: SentroyMcpContactExportReference,
+    options?: { signal?: AbortSignal; timeoutMs?: number },
+  ): Promise<Response>;
+  uploadMailContactsImport(
+    reference: SentroyMcpContactImportReference,
+    body: SentroyMcpContactFileBody,
+    options?: { signal?: AbortSignal; timeoutMs?: number },
+  ): Promise<SentroyMcpContactImportUploaded>;
   close(): Promise<void>;
-}
-export class SentroyMcpError extends Error {
-  constructor(
-    readonly code: string,
-    readonly status?: number,
-  ) {
-    super(code);
-    this.name = "SentroyMcpError";
-  }
 }
 const origins: Record<SentroyMcpApp, string> = {
   core: "https://sentroy.com",
@@ -188,6 +207,19 @@ export async function connectSentroyMcp(
     client,
     resource: resource.href,
     close: () => client.close(),
+    downloadMailContactsExport: (reference, input) =>
+      downloadContactExport(
+        { app, resource, getToken, fetcher },
+        reference,
+        input,
+      ),
+    uploadMailContactsImport: (reference, body, input) =>
+      uploadContactImport(
+        { app, resource, getToken, fetcher },
+        reference,
+        body,
+        input,
+      ),
     downloadFile: (reference, input) =>
       downloadFile(app, resource, getToken, fetcher, reference, input),
     downloadMailAttachment: (reference, input) =>

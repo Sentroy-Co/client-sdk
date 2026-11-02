@@ -1056,3 +1056,17 @@ without BCC, SDK multi-To is normalized to personalized batch recipients.
 Use STK/cookie REST authority, not MCP tokens/human consent. Errors retain the
 UUID; do not automatically create a new UUID after unknown/partial delivery.
 Run `npm run build`, `npm run test:mcp` and `node --test tests/compose.test.cjs`.
+
+## Source preview: private MCP contact files
+
+Mail connections add downloadMailContactsExport and uploadMailContactsImport.
+Use sentroyMcpContactImportFileInfo on a local Blob/ArrayBuffer/Uint8Array; pass
+only format/bytes/hash to upload_create, never raw file data to model/tool input.
+Helpers pin origin/company/path/original connection/UUID/expiry/size/hash, no
+cookies/query token/redirect/retry. Export verifies complete SHA-256 before
+returning a <=1MiB attachment; upload snapshots/hashes bytes before loading the
+credential. Upload errors expose only allowlisted reason/line, never diagnostics.
+Server import requires read/write/import/manage and a separate real-cookie review;
+existing addresses skip unchanged and all new contacts remain unsubscribed.
+Read MCP.md for limits, Web Crypto/Node18 flag and unknown receipt recovery.
+The npm version stays2.18.0; source feature branch only, no release/publish.

@@ -170,18 +170,91 @@ are kept separate from decoded bytes. Redirect/error, cancellation, timeout and
 stream bounds use the same behavior as Storage. Downloaded files and names remain
 untrusted data. The helper neither sends email nor automatically calls a tool.
 
+## Private Mail contact files
+
+These helpers require the matching contact-file server routes and deliberately
+selected contact scopes. They do not reserve files, call tools, import contacts
+or approve anything on their own.
+
+`downloadMailContactsExport(reference)` accepts the metadata returned by
+`mail_contacts_export_create/get`. It validates the Mail origin/company/path,
+public export UUID, original connection ID, SHA-256, expiry, format and <=1 MiB
+budget before loading a credential. It reads a bounded buffer and verifies the
+complete byte count **and SHA-256 before returning** an attachment Response.
+Save its body to your trusted file sink; keep file bytes out of model context.
+CSV is spreadsheet-safe (apostrophe escapes), while JSONL preserves values.
+
+For import, select a trusted local Blob/File, ArrayBuffer or Uint8Array. Compute
+metadata locally; only that metadata goes into the tool input:
+
+```ts
+import {
+  sentroyMcpContactImportFileInfo,
+  type SentroyMcpContactImportReference,
+} from "@sentroy-co/client-sdk/mcp";
+
+// connection is a Mail connection. localFile is a user-selected Blob/File.
+const info = await sentroyMcpContactImportFileInfo(localFile, "jsonl");
+const reserved = await connection.client.callTool({
+  name: "mail_contacts_import_upload_create",
+  arguments: { requestId: crypto.randomUUID(), ...info },
+});
+if (reserved.isError) throw new Error("File reservation unavailable");
+const upload = reserved.structuredContent?.data as SentroyMcpContactImportReference;
+// Runtime checks and a fresh local snapshot protect the credential and file identity.
+const uploaded = await connection.uploadMailContactsImport(upload, localFile, { signal });
+const preview = await connection.client.callTool({
+  name: "mail_contacts_import_preview",
+  arguments: { uploadId: uploaded.uploadId },
+});
+// Inspect counts, then explicitly call mail_contacts_import_prepare with its
+// expectedRevision and a stable request UUID. The real user reviews EVERY new
+// email/name/tag at Sentroy's approval URL. There is no MCP approve/execute tool.
+```
+
+`sentroyMcpContactImportFileInfo` returns format/bytes/hash only and performs no
+network or credential access. `uploadMailContactsImport` validates the reserved
+reference, snapshots the local bytes, checks length/hash before loading a token,
+and makes one raw application/octet-stream PUT. No cookies, redirects, query
+credentials, retries, other-origin/company/app endpoints or arbitrary URL fetches.
+The response is bounded and curated to upload ID/state/count/hash/expiry; remote
+private fields never enter the result. `SentroyMcpContactImportError` can contain
+an allowlisted validation `reason` and bounded `row`; its message excludes remote
+or local file content. Other errors remain sanitized `SentroyMcpError` codes.
+
+Raw files are <=1 MiB; the server accepts <=100 unique canonical emails and
+48 KiB normalized rows/64 KiB review plan. Existing case-insensitive addresses
+are skipped without changes. ALL new contacts are unsubscribed; input status,
+metadata/history/IDs/list membership cannot reactivate or overwrite a person.
+Metadata columns and ambiguous CSV apostrophe email prefixes refuse; use JSONL
+for lossless interchange. A separate explicit reviewed reactivation is required.
+Upload/preview/prepare require contacts.read/write/import + audience.manage;
+export requires contacts.read/export + audience.view. Defaults do not grow.
+
+Three server slots per actor/company and a <=10-minute TTL apply to each file
+family. Uploads use a default 15-second helper deadline (server body deadline is
+8 seconds); downloads default to 60 seconds. Callers can set 1–120,000 ms and
+AbortSignal. Deadlines include credential callbacks, hashing and body consumption.
+All hashes use Web Crypto; Node 18 needs `--experimental-global-webcrypto` for
+these helpers. Modern browsers and Node 24 provide it; an unavailable implementation
+fails with mcp_crypto_unavailable. No Node-only crypto import is added to browsers.
+A hash or URL never replaces the server's current actor/grant/permission checks.
+Unknown reviewed imports reconcile through mail_contacts_import_status; a missing
+receipt never authorizes replay or a new request UUID.
+
 ## Verification
 
 `npm run build` and `npm run test:mcp` run from `typescript/`. Tests use a loopback
 server with the real official SDK and synthetic credentials. They cover protocol
 connection/list/call, token callback rotation, no cookie/redirect/replay, resource
 and credential classes, untrusted Storage/Mail downloads, immutable byte budgets,
-gzip wire lengths, stream bounds/cancel/timeout, and
+gzip wire lengths, contact export/import checksums and safe upload errors,
+immutable upload snapshots, stream bounds/cancel/timeout, and
 main-entry isolation from the optional MCP dependency. No production API or user
 message is used. Browser, physical-device and product-client acceptance remain
 separate work.
 
-The 14 tests passed on Node 24 and Node 18.20.8 with
-`node --experimental-global-webcrypto --test tests/mcp.test.cjs`. The flag is needed
-by the official server fixture on Node 18; flagless Node 18 server support is not
+The 28 MCP tests passed on Node 24 and Node 18.20.8 with
+`node --experimental-global-webcrypto --test tests/mcp.test.cjs tests/mcp-contact-files.test.cjs`. The flag is needed
+by the official server fixture and contact-file SHA-256 helpers on Node 18; flagless Node 18 server support is not
 claimed. This does not publish the SDK or replace real-client/device acceptance.

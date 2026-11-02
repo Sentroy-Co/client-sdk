@@ -662,3 +662,16 @@ The new optional client-sdk `/mcp` helper is source-preview code, not yet on npm
 
 Current endpoint/tool families and exact limits: https://docs.sentroy.com/mcp
 Plain-text reference: https://docs.sentroy.com/llms-mcp.txt
+
+Mail private contact files (source preview): sentroyMcpContactImportFileInfo computes
+format/bytes/SHA-256 locally without a credential or network request. Keep raw
+CSV/JSONL out of prompts/tool arguments. Explicitly reserve via import_upload_create,
+then uploadMailContactsImport uses original-bearer same-origin/company/UUID/expiry
+checks and a <=1MiB byte/hash-verified PUT. Preview counts before preparing a real
+human review of every new contact. Existing addresses are skipped untouched; all
+new contacts remain unsubscribed. Input status/history/metadata cannot reactivate
+anyone. mail_contacts_import_status recovers receipts; unknown never replays.
+downloadMailContactsExport verifies a private reference's full size and SHA-256
+before returning a Response. JSONL is lossless, CSV has spreadsheet escapes.
+No helper calls a tool or approves automatically; Node18 needs the Web Crypto flag.
+These remain feature-branch code, not npm2.18.0 functionality.
