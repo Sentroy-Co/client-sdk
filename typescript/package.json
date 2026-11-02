@@ -77,7 +77,7 @@
   "scripts": {
     "build": "tsc && node scripts/build-styles.mjs",
     "prepublishOnly": "npm run build",
-    "test:mcp": "node --test tests/mcp.test.cjs tests/mcp-contact-files.test.cjs"
+    "test:mcp": "node --test tests/mcp.test.cjs tests/mcp-contact-files.test.cjs tests/mcp-storage-uploads.test.cjs"
   },
   "keywords": [
     "sentroy",

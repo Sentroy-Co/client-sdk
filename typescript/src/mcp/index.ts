@@ -4,6 +4,20 @@ import {
   StreamableHTTPError,
 } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { SentroyMcpError } from "./errors";
+import { uploadStorageFile } from "./storage-uploads";
+import type {
+  SentroyMcpStorageUploadBody,
+  SentroyMcpStorageUploadReference,
+  SentroyMcpStorageUploadMetadata,
+} from "./storage-uploads";
+export { sentroyMcpStorageUploadFileInfo } from "./storage-uploads";
+export type {
+  SentroyMcpStorageUploadBody,
+  SentroyMcpStorageUploadFileInfo,
+  SentroyMcpStorageUploadMimeType,
+  SentroyMcpStorageUploadReference,
+  SentroyMcpStorageUploadMetadata,
+} from "./storage-uploads";
 import { downloadContactExport, uploadContactImport } from "./contact-files";
 import type {
   SentroyMcpContactExportReference,
@@ -69,6 +83,11 @@ export interface SentroyMcpConnection {
     body: SentroyMcpContactFileBody,
     options?: { signal?: AbortSignal; timeoutMs?: number },
   ): Promise<SentroyMcpContactImportUploaded>;
+  uploadStorageFile(
+    reference: SentroyMcpStorageUploadReference,
+    body: SentroyMcpStorageUploadBody,
+    options?: { signal?: AbortSignal; timeoutMs?: number },
+  ): Promise<SentroyMcpStorageUploadMetadata & { state: "ready" }>;
   close(): Promise<void>;
 }
 const origins: Record<SentroyMcpApp, string> = {
@@ -206,6 +225,13 @@ export async function connectSentroyMcp(
   return {
     client,
     resource: resource.href,
+    uploadStorageFile: (reference, body, input) =>
+      uploadStorageFile(
+        { app, resource, getToken, fetcher },
+        reference,
+        body,
+        input,
+      ),
     close: () => client.close(),
     downloadMailContactsExport: (reference, input) =>
       downloadContactExport(

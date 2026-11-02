@@ -1070,3 +1070,22 @@ Server import requires read/write/import/manage and a separate real-cookie revie
 existing addresses skip unchanged and all new contacts remain unsubscribed.
 Read MCP.md for limits, Web Crypto/Node18 flag and unknown receipt recovery.
 The npm version stays2.18.0; source feature branch only, no release/publish.
+
+## Source preview: private MCP Storage uploads
+
+Storage connections add `uploadStorageFile`; `sentroyMcpStorageUploadFileInfo`
+locally snapshots/hashes Blob, ArrayBuffer or Uint8Array (1 byte–10 MiB) and
+returns name/MIME/bytes/SHA-256 only. Reserve with `storage_uploads_create`,
+transfer bytes with the helper, then prepare a separate real-user review using
+the ready revision. Requires files.upload opt-in plus current Native upload/read.
+The helper pins origin/company/path/UUID/original-connection/expiry, nested bucket
+and every manifest field, checks bytes before credentials, makes one PUT with no
+cookies/redirect/retry and validates a bounded private staging receipt.
+It never scans, publishes, approves, overwrites or changes sharing itself.
+Recover lost transfer acknowledgements through `storage_uploads_get`;
+publication through `storage_upload_operation_status`, never a new automatic UUID.
+Shared private-file mechanics preserve the contact-file behavior. Forty MCP
+tests pass on Node24/Node18 (Web Crypto flag); four matching actual Storage/native
+CDN integration cases pass with synthetic Mongo/S3/scanner transports.
+Read [MCP.md](MCP.md) for the complete source-preview contract and sample.
+Version2.18.0 remains unpublished; feature commit/push only.

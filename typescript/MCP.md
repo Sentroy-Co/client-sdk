@@ -242,6 +242,89 @@ A hash or URL never replaces the server's current actor/grant/permission checks.
 Unknown reviewed imports reconcile through mail_contacts_import_status; a missing
 receipt never authorizes replay or a new request UUID.
 
+## Private Storage uploads (source preview, Phase073)
+
+`sentroyMcpStorageUploadFileInfo(body, { name, mimeType })` computes a local
+manifest. `body` accepts Blob, ArrayBuffer or Uint8Array, including Buffer.
+It returns only name, MIME type, byte length and SHA-256. No credential or
+network request is used. Supported files are 1 byte–10 MiB with one of the
+fourteen MIME/extension families advertised by `storage_uploads_create`:
+PDF; JPEG/PNG/WebP; plain text/CSV; MPEG/WAV/Ogg/MP4/WebM audio;
+MP4/WebM/QuickTime video. SVG, HTML, archives and arbitrary executable types
+are refused. This manifest validation does not inspect magic bytes or scan malware.
+
+```ts
+import {
+  connectSentroyMcp,
+  sentroyMcpStorageUploadFileInfo,
+  type SentroyMcpStorageUploadReference,
+} from "@sentroy-co/client-sdk/mcp";
+
+const connection = await connectSentroyMcp({
+  app: "storage", companySlug: "my-company",
+  token: () => readMcpCredentialFromYourSecureStore(),
+});
+try {
+  const file = new Blob(["name,amount\nAda,42\n"]);
+  const manifest = await sentroyMcpStorageUploadFileInfo(file, {
+    name: "budget.csv", mimeType: "text/csv",
+  });
+  const reservation = await connection.client.callTool({
+    name: "storage_uploads_create",
+    arguments: { requestId: crypto.randomUUID(), bucket: "assets", ...manifest },
+  });
+  if (reservation.isError) throw new Error("Storage reservation refused");
+  const reference = reservation.structuredContent?.data as SentroyMcpStorageUploadReference;
+  const ready = await connection.uploadStorageFile(reference, file);
+  // This is a private staging receipt, not a published file or a malware scan.
+  const review = await connection.client.callTool({
+    name: "storage_upload_prepare",
+    arguments: {
+      requestId: crypto.randomUUID(), uploadId: ready.uploadId,
+      expectedRevision: ready.revision,
+    },
+  });
+  // Present the canonical Sentroy approvalUrl to the real user. No automatic approval.
+} finally {
+  await connection.close();
+}
+```
+
+`uploadStorageFile` is restricted to a Storage connection and exact same-origin
+`/mcp/:company/uploads/:UUID?connection=:originalGrant` reference. The reservation
+must explicitly say PUT, application/octet-stream and requiresOriginalBearer.
+The URL carries an identifier, never a bearer or public ticket. Current Native
+membership, upload/read permissions, bucket ACL/revision and original grant
+remain authoritative on the server. Upload scope `storage.files.upload` is
+opt-in; existing default connections remain read-only.
+
+The helper pins the manifest, nested bucket, expiry and URL before asynchronous
+work; snapshots and verifies the local bytes before loading a credential;
+then makes one PUT with the current original-connection bearer. No cookies,
+redirect, retry, tool call, CDN secret or approval occurs inside the helper.
+Its default 15-second deadline (1–120,000 ms override) covers local hashing,
+credential acquisition, HTTP and the bounded 4 KiB acknowledgement. AbortSignal
+cancels the same operation. Expiry is checked again after credential acquisition.
+The acknowledgement must match every manifest field and private staging flag;
+remote diagnostics and extra fields are discarded. Shared transfer mechanics
+retain the existing contact-file limits and error contracts.
+
+The server retains at most three staging slots per actor/company across grants,
+six per company and 24 globally for ten minutes; deadlines do not extend.
+Only the subsequent real-cookie review can request a ClamAV/magic check and
+owner-private CDN publication. Company quota, immutable receipt and versioned
+v2 erasure barriers apply there. A successful transfer alone has published:false,
+malwareScanned:false and requiresHumanApproval:true. It cannot overwrite, share
+or publish an existing file. The default uploads folder and owner ACL are fixed.
+
+After a lost transfer acknowledgement, inspect `storage_uploads_get` with the
+same upload ID to recover the current ready revision. After a lost publication
+acknowledgement, use `storage_upload_operation_status` and retain the original
+intent/request ID. Never auto-retry with a new UUID. Storage's automatic cleanup
+can reconcile expired attempts even if the user's grant is revoked; ambiguity
+does not prove absence or refund quota. Real Mongo/S3/ClamAV/client acceptance
+is still separate. Web Crypto and the Node18 flag described above also apply.
+
 ## Verification
 
 `npm run build` and `npm run test:mcp` run from `typescript/`. Tests use a loopback
@@ -254,7 +337,7 @@ main-entry isolation from the optional MCP dependency. No production API or user
 message is used. Browser, physical-device and product-client acceptance remain
 separate work.
 
-The 28 MCP tests passed on Node 24 and Node 18.20.8 with
-`node --experimental-global-webcrypto --test tests/mcp.test.cjs tests/mcp-contact-files.test.cjs`. The flag is needed
+The 40 MCP tests passed on Node 24 and Node 18.20.8 with
+`node --experimental-global-webcrypto --test tests/mcp.test.cjs tests/mcp-contact-files.test.cjs tests/mcp-storage-uploads.test.cjs`. The flag is needed
 by the official server fixture and contact-file SHA-256 helpers on Node 18; flagless Node 18 server support is not
 claimed. This does not publish the SDK or replace real-client/device acceptance.

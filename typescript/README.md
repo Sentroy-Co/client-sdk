@@ -285,6 +285,12 @@ from the REST `stk_` client. [Connection, credential and download contract](MCP.
 This export is on the feature branch and has not been released to npm; the existing
 2.18.0 version must not be presented as already containing it.
 
+The source preview also supports private Storage staging with
+`sentroyMcpStorageUploadFileInfo` and `connection.uploadStorageFile` (1 byte–10 MiB).
+Only manifest metadata enters a tool call; bytes use a pinned original-bearer PUT.
+Publication still requires a separate real-user review, quota and malware scan.
+See [the upload contract and example](MCP.md#private-storage-uploads-source-preview-phase073).
+
 ### BCC compose (source preview)
 
 On `feat/mcp-connections` only; not yet in npm2.18.0. BCC uses a versioned Mail
