@@ -1,7 +1,7 @@
 {
   "name": "@sentroy-co/client-sdk",
   "version": "2.18.1",
-  "description": "TypeScript SDK + CLI for the Sentroy platform — mail, storage, env vault + React components.",
+  "description": "TypeScript SDK + CLI for the Sentroy platform \u2014 mail, storage, env vault + React components.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -58,6 +58,11 @@
       "types": "./dist/auth/react-native/index.d.ts",
       "import": "./dist/auth/react-native/index.js",
       "require": "./dist/auth/react-native/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "import": "./dist/mcp/index.js",
+      "require": "./dist/mcp/index.js"
     }
   },
   "files": [
@@ -66,11 +71,13 @@
     "bin",
     "skill",
     "AGENTS.md",
-    "SKILL.md"
+    "SKILL.md",
+    "MCP.md"
   ],
   "scripts": {
     "build": "tsc && node scripts/build-styles.mjs",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test:mcp": "node --test tests/mcp.test.cjs tests/mcp-contact-files.test.cjs tests/mcp-storage-uploads.test.cjs"
   },
   "keywords": [
     "sentroy",
@@ -104,7 +111,8 @@
   "peerDependencies": {
     "@simplewebauthn/browser": "^13.0.0",
     "react": ">=18.0.0",
-    "react-dom": ">=18.0.0"
+    "react-dom": ">=18.0.0",
+    "@modelcontextprotocol/sdk": "^1.32.2"
   },
   "peerDependenciesMeta": {
     "@simplewebauthn/browser": {
@@ -115,6 +123,9 @@
     },
     "react-dom": {
       "optional": true
+    },
+    "@modelcontextprotocol/sdk": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -123,7 +134,8 @@
     "@types/react-dom": "^19.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "@modelcontextprotocol/sdk": "1.32.2"
   },
   "dependencies": {
     "motion": "^12.38.0",

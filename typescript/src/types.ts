@@ -181,12 +181,19 @@ export interface SendParams {
   subject: string
   domainId: string
   cc?: string | string[]
+  /** One shared envelope, maximum 20 unique To/CC/BCC recipients. BCC-only uses to: []. */
+  bcc?: string | string[]
+  /** Reuse this UUID after an uncertain BCC send; never generate another automatically on retry. */
+  requestId?: string
   templateId?: string
   /** Template language code (e.g. "en", "tr"). Falls back to default if omitted. */
   lang?: string
   html?: string
   text?: string
-  variables?: Record<string, string>
+  variables?: Record<
+    string,
+    string | number | boolean | Record<string, string | number | boolean>[]
+  >
   replyTo?: string
   attachments?: Attachment[]
   scheduledAt?: string
@@ -196,10 +203,42 @@ export interface SendParams {
 }
 
 export interface SendResult {
-  jobId: string
-  mailLogId: string
+  jobId?: string
+  mailLogId?: string
+  requestId?: string
+  canRetry?: boolean
+  totalQueued?: number
+  jobs?: { to?: string; jobId?: string; mailLogId?: string; error?: string }[]
   status: string
   scheduledAt?: string
+}
+
+/** A private IMAP draft; BCC saves use a durable platform request receipt, never SMTP. */
+export interface SaveDraftParams {
+  mailbox: string
+  from?: string
+  to?: string | string[]
+  cc?: string | string[]
+  bcc?: string | string[]
+  requestId?: string
+  replyTo?: string | string[]
+  subject?: string
+  html?: string
+  text?: string
+  templateId?: string
+  lang?: string
+  variables?: SendParams["variables"]
+  attachments?: Attachment[]
+  inReplyTo?: string
+  references?: string[]
+  headers?: Record<string, string>
+}
+export interface SaveDraftResult {
+  status?: string
+  folder?: string
+  requestId?: string
+  canRetry?: boolean
+  message?: string
 }
 
 // ── Storage / Buckets ──────────────────────────────────────────────────────

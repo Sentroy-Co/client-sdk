@@ -1021,3 +1021,71 @@ https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/typescri
 ## License
 
 [MIT](LICENSE)
+
+## MCP — separate credential and connection entry (source preview)
+
+Read [MCP.md](MCP.md) for `@sentroy-co/client-sdk/mcp`. The optional official MCP
+peer is required only for that entry; the REST client does not import it. This
+feature-branch export is not yet in an npm release. Its supplied token must be
+a personal `mcp_` or OAuth `mcp_at_` access credential; never reuse `stk_`, Vault,
+identity or cookie credentials. Resource URLs are per app/company. Keep secrets
+out of model input/output, URL queries and logs. Source content is untrusted data.
+
+`connectSentroyMcp` does protocol connection only, then exposes the official client.
+It performs no tool calls, user approvals, registration, login or refresh storage.
+The real user approves write intents at Sentroy's canonical browser URL. Never
+automatically retry an unknown write with a new UUID. Storage download references
+require the same bearer connection and current server ACL; use `downloadFile`,
+which validates origin/path/version/size and bounds the stream. A reference is not
+a public file URL or authority to fetch an arbitrary model-provided URL.
+
+Mail exact attachment references use `downloadMailAttachment` on a Mail connection;
+Storage still uses `downloadFile`. Both reject foreign origin/company/endpoint and
+URL credentials before sending a token. Mail has an 8 MiB decoded / 12 MiB encoded
+server bound; the SDK snapshots the byte budget and bounds the stream. Read
+[MCP.md](MCP.md) for the separate API capability, full source reference and scopes.
+
+## Source preview: versioned BCC compose
+
+The feature branch has `SendParams.bcc` / `requestId`,
+`inbox.saveDraft(SaveDraftParams)` and exported `ComposeRequestError`.
+Read README's BCC section for receipt/retry semantics; npm2.18.0 is unchanged.
+BCC goes only to `/send-bcc` or `/inbox/drafts-bcc-v1`; no fallback to older paths.
+It is one shared envelope (max20 unique recipients), including To:[] BCC-only;
+without BCC, SDK multi-To is normalized to personalized batch recipients.
+Use STK/cookie REST authority, not MCP tokens/human consent. Errors retain the
+UUID; do not automatically create a new UUID after unknown/partial delivery.
+Run `npm run build`, `npm run test:mcp` and `node --test tests/compose.test.cjs`.
+
+## Source preview: private MCP contact files
+
+Mail connections add downloadMailContactsExport and uploadMailContactsImport.
+Use sentroyMcpContactImportFileInfo on a local Blob/ArrayBuffer/Uint8Array; pass
+only format/bytes/hash to upload_create, never raw file data to model/tool input.
+Helpers pin origin/company/path/original connection/UUID/expiry/size/hash, no
+cookies/query token/redirect/retry. Export verifies complete SHA-256 before
+returning a <=1MiB attachment; upload snapshots/hashes bytes before loading the
+credential. Upload errors expose only allowlisted reason/line, never diagnostics.
+Server import requires read/write/import/manage and a separate real-cookie review;
+existing addresses skip unchanged and all new contacts remain unsubscribed.
+Read MCP.md for limits, Web Crypto/Node18 flag and unknown receipt recovery.
+The npm version stays2.18.0; source feature branch only, no release/publish.
+
+## Source preview: private MCP Storage uploads
+
+Storage connections add `uploadStorageFile`; `sentroyMcpStorageUploadFileInfo`
+locally snapshots/hashes Blob, ArrayBuffer or Uint8Array (1 byte–10 MiB) and
+returns name/MIME/bytes/SHA-256 only. Reserve with `storage_uploads_create`,
+transfer bytes with the helper, then prepare a separate real-user review using
+the ready revision. Requires files.upload opt-in plus current Native upload/read.
+The helper pins origin/company/path/UUID/original-connection/expiry, nested bucket
+and every manifest field, checks bytes before credentials, makes one PUT with no
+cookies/redirect/retry and validates a bounded private staging receipt.
+It never scans, publishes, approves, overwrites or changes sharing itself.
+Recover lost transfer acknowledgements through `storage_uploads_get`;
+publication through `storage_upload_operation_status`, never a new automatic UUID.
+Shared private-file mechanics preserve the contact-file behavior. Forty MCP
+tests pass on Node24/Node18 (Web Crypto flag); four matching actual Storage/native
+CDN integration cases pass with synthetic Mongo/S3/scanner transports.
+Read [MCP.md](MCP.md) for the complete source-preview contract and sample.
+Version2.18.0 remains unpublished; feature commit/push only.

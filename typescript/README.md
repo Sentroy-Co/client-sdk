@@ -275,3 +275,48 @@ https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/typescri
 ## License
 
 [MIT](LICENSE)
+
+## MCP (source preview)
+
+The new `@sentroy-co/client-sdk/mcp` entry connects the official MCP client to a
+company/app-scoped resource and validates authenticated Storage downloads. It uses
+personal MCP or externally managed OAuth MCP access credentials, independently
+from the REST `stk_` client. [Connection, credential and download contract](MCP.md).
+This export is on the feature branch and has not been released to npm; the existing
+2.18.0 version must not be presented as already containing it.
+
+The source preview also supports private Storage staging with
+`sentroyMcpStorageUploadFileInfo` and `connection.uploadStorageFile` (1 byte–10 MiB).
+Only manifest metadata enters a tool call; bytes use a pinned original-bearer PUT.
+Publication still requires a separate real-user review, quota and malware scan.
+See [the upload contract and example](MCP.md#private-storage-uploads-source-preview-phase073).
+
+### BCC compose (source preview)
+
+On `feat/mcp-connections` only; not yet in npm2.18.0. BCC uses a versioned Mail
+service and one shared email, up to20 unique To/CC/BCC recipients. To/CC remain
+visible. `to: []` sends to BCC only. Without BCC, multiple To addresses are a
+personalized batch, preserving each recipient's variables.
+
+```ts
+const requestId = crypto.randomUUID() // retain with your operation
+const result = await sentroy.send.email({
+  requestId,
+  from: "sender@example.com", domainId: "owned-domain-uuid",
+  to: ["visible@example.net"], bcc: ["private@example.net"],
+  subject: "Hello", text: "One shared email",
+})
+const draft = await sentroy.inbox.saveDraft({
+  requestId: crypto.randomUUID(), mailbox: "sender@example.com",
+  bcc: ["private@example.net"], html: "<p>Private draft</p>",
+})
+```
+
+Versioned writes make one HTTP attempt, reject redirects, and bound receipts.
+Retain the UUID on errors (`ComposeRequestError.requestId`) and uncertain results;
+repeat the identical UUID to recover a retained receipt. `unknown`/`bounced` can
+mean delivery already happened: inspect delivery logs before intentionally
+creating another send. `canRetry: true` explicitly means the web operation was
+not issued. Receipt-only results may have no job/mailLog ID. Private draft save
+writes IMAP Drafts, never SMTP. On runtimes without `crypto.randomUUID`, supply
+an explicit UUID. Templates, attachments and threading are supported in BCC drafts.
