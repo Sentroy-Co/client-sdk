@@ -1,24 +1,57 @@
 //! Types for the mail API.
-use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
+use std::collections::BTreeMap;
 
 /// A single string or localized dictionary.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum LocalizedString { Text(String), Locales(BTreeMap<String, String>) }
-impl Default for LocalizedString { fn default() -> Self { Self::Text(String::new()) } }
-impl From<String> for LocalizedString { fn from(v: String) -> Self { Self::Text(v) } }
-impl From<&str> for LocalizedString { fn from(v: &str) -> Self { Self::Text(v.into()) } }
+pub enum LocalizedString {
+    Text(String),
+    Locales(BTreeMap<String, String>),
+}
+impl Default for LocalizedString {
+    fn default() -> Self {
+        Self::Text(String::new())
+    }
+}
+impl From<String> for LocalizedString {
+    fn from(v: String) -> Self {
+        Self::Text(v)
+    }
+}
+impl From<&str> for LocalizedString {
+    fn from(v: &str) -> Self {
+        Self::Text(v.into())
+    }
+}
 /// A single address or a list of addresses.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Addresses { One(String), Many(Vec<String>) }
-impl Default for Addresses { fn default() -> Self { Self::Many(Vec::new()) } }
-impl From<String> for Addresses { fn from(v: String) -> Self { Self::One(v) } }
-impl From<&str> for Addresses { fn from(v: &str) -> Self { Self::One(v.into()) } }
-impl From<Vec<String>> for Addresses { fn from(v: Vec<String>) -> Self { Self::Many(v) } }
+pub enum Addresses {
+    One(String),
+    Many(Vec<String>),
+}
+impl Default for Addresses {
+    fn default() -> Self {
+        Self::Many(Vec::new())
+    }
+}
+impl From<String> for Addresses {
+    fn from(v: String) -> Self {
+        Self::One(v)
+    }
+}
+impl From<&str> for Addresses {
+    fn from(v: &str) -> Self {
+        Self::One(v.into())
+    }
+}
+impl From<Vec<String>> for Addresses {
+    fn from(v: Vec<String>) -> Self {
+        Self::Many(v)
+    }
+}
 pub type Variables = BTreeMap<String, Value>;
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -119,7 +152,7 @@ pub struct MessageDetail {
     pub text_body: Option<String>,
     pub html_body: Option<String>,
     pub attachments: Vec<AttachmentInfo>,
-    pub headers: BTreeMap<String,String>,
+    pub headers: BTreeMap<String, String>,
     pub message_id: Option<String>,
     pub in_reply_to: Option<String>,
     pub references: Vec<String>,
@@ -212,7 +245,7 @@ pub struct SendParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scheduled_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub headers: Option<BTreeMap<String,String>>,
+    pub headers: Option<BTreeMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub in_reply_to: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -284,7 +317,7 @@ pub struct SaveDraftParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub references: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub headers: Option<BTreeMap<String,String>>,
+    pub headers: Option<BTreeMap<String, String>>,
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -311,7 +344,7 @@ pub struct Contact {
     pub name: Option<String>,
     pub tags: Vec<String>,
     pub status: ContactStatus,
-    pub metadata: BTreeMap<String,Value>,
+    pub metadata: BTreeMap<String, Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_emailed_at: Option<String>,
     pub created_at: String,
@@ -339,7 +372,7 @@ pub struct CreateContactParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<BTreeMap<String,Value>>,
+    pub metadata: Option<BTreeMap<String, Value>>,
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -353,7 +386,7 @@ pub struct UpdateContactParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<ContactStatus>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<BTreeMap<String,Value>>,
+    pub metadata: Option<BTreeMap<String, Value>>,
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -459,7 +492,7 @@ pub struct WebhookDelivery {
     pub company_id: String,
     pub kind: WebhookDeliveryKind,
     pub event: String,
-    pub payload: BTreeMap<String,Value>,
+    pub payload: BTreeMap<String, Value>,
     pub url: String,
     pub response_status: u16,
     pub response_body: String,
@@ -494,7 +527,7 @@ pub struct WebhookDeliveryListResult {
 #[serde(rename_all = "camelCase")]
 pub struct WebhookTestParams {
     pub event: String,
-    pub payload: BTreeMap<String,Value>,
+    pub payload: BTreeMap<String, Value>,
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -520,7 +553,7 @@ pub struct MailLog {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub domain: Option<DomainName>,
     pub template_id: Option<String>,
-    pub variables: Option<BTreeMap<String,Value>>,
+    pub variables: Option<BTreeMap<String, Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scheduled_at: Option<String>,
     pub sent_at: Option<String>,

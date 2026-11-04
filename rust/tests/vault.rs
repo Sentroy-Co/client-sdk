@@ -1,7 +1,16 @@
-use std::{io::{Read, Write}, net::TcpListener, sync::{Arc, atomic::{AtomicBool, AtomicUsize, Ordering}}, thread, time::{Duration, SystemTime, UNIX_EPOCH}};
 use hmac::{Hmac, Mac};
+use sentroy_client_sdk::vault::{verify_webhook, VaultClient, VaultConfig, WebhookError};
 use sha2::Sha256;
-use sentroy_client_sdk::vault::{VaultClient, VaultConfig, verify_webhook, WebhookError};
+use std::{
+    io::{Read, Write},
+    net::TcpListener,
+    sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc,
+    },
+    thread,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 struct Server {
     base: String,
@@ -21,22 +30,41 @@ impl Server {
             while !stopped.load(Ordering::SeqCst) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
-                        stream.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+                        stream
+                            .set_read_timeout(Some(Duration::from_secs(2)))
+                            .unwrap();
                         let mut buf = [0; 4096];
                         let n = stream.read(&mut buf).unwrap();
                         let request = String::from_utf8_lossy(&buf[..n]);
                         assert!(request.starts_with("GET /api/env-vault/fetch "));
                         calls.fetch_add(1, Ordering::SeqCst);
-                        let value = if request.to_ascii_lowercase().contains("bearer stk_env_second") { "second" } else { "first" };
-                        let body = format!(r#"{{"data":{{"project":"p","environment":"prod","variables":[{{"key":"SECRET","value":"{}","type":"string","public":false}},{{"key":"PUBLIC","value":"visible","type":"string","public":true}}]}}}}"#, value);
+                        let value = if request
+                            .to_ascii_lowercase()
+                            .contains("bearer stk_env_second")
+                        {
+                            "second"
+                        } else {
+                            "first"
+                        };
+                        let body = format!(
+                            r#"{{"data":{{"project":"p","environment":"prod","variables":[{{"key":"SECRET","value":"{}","type":"string","public":false}},{{"key":"PUBLIC","value":"visible","type":"string","public":true}}]}}}}"#,
+                            value
+                        );
                         write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body).unwrap();
                     }
-                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => thread::sleep(Duration::from_millis(2)),
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(2))
+                    }
                     Err(e) => panic!("{e}"),
                 }
             }
         });
-        Self { base, count, stop, thread: Some(thread) }
+        Self {
+            base,
+            count,
+            stop,
+            thread: Some(thread),
+        }
     }
 }
 impl Drop for Server {
@@ -46,10 +74,17 @@ impl Drop for Server {
     }
 }
 fn client(base: &str, key: Option<&str>) -> Result<VaultClient, sentroy_client_sdk::Error> {
-    VaultClient::new(VaultConfig { base_url: base.into(), api_key: key.map(str::to_owned), ..VaultConfig::default() })
+    VaultClient::new(VaultConfig {
+        base_url: base.into(),
+        api_key: key.map(str::to_owned),
+        ..VaultConfig::default()
+    })
 }
 fn runtime() -> tokio::runtime::Runtime {
-    tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap()
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
 }
 
 #[test]
@@ -66,7 +101,10 @@ fn cache_filter_refresh_and_client_isolation() {
         assert_eq!(public.len(), 1);
         assert_eq!(public.get("PUBLIC").map(String::as_str), Some("visible"));
         assert_eq!(server.count.load(Ordering::SeqCst), 1);
-        assert_eq!(second.get("SECRET").await.unwrap().as_deref(), Some("second"));
+        assert_eq!(
+            second.get("SECRET").await.unwrap().as_deref(),
+            Some("second")
+        );
         first.refresh().await.unwrap();
         assert_eq!(server.count.load(Ordering::SeqCst), 3);
         first.set_cache_ttl(Duration::ZERO).await;
@@ -101,7 +139,9 @@ fn sign(secret: &str, body: &[u8]) -> String {
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
     mac.update(body);
     let mut result = String::from("sha256=");
-    for byte in mac.finalize().into_bytes() { result.push_str(&format!("{byte:02x}")); }
+    for byte in mac.finalize().into_bytes() {
+        result.push_str(&format!("{byte:02x}"));
+    }
     result
 }
 
@@ -110,11 +150,23 @@ fn webhook_authenticates_raw_bytes_and_checks_window() {
     let body = br#"{"event":"vault.variable.changed","project":"p","environment":"e","action":"delete","keys":["A"],"timestamp":1}"#;
     let sig = sign("secret", body);
     assert!(verify_webhook("secret", &sig, body, Duration::ZERO).is_ok());
-    assert_eq!(verify_webhook("secret", &sig, body, Duration::from_secs(300)), Err(WebhookError::TimestampOutsideWindow));
+    assert_eq!(
+        verify_webhook("secret", &sig, body, Duration::from_secs(300)),
+        Err(WebhookError::TimestampOutsideWindow)
+    );
     let mut changed = body.to_vec();
     changed.push(b' ');
-    assert_eq!(verify_webhook("secret", &sig, &changed, Duration::ZERO), Err(WebhookError::InvalidSignature));
-    assert_eq!(verify_webhook("secret", "sha256=bad", body, Duration::ZERO), Err(WebhookError::InvalidSignature));
+    assert_eq!(
+        verify_webhook("secret", &sig, &changed, Duration::ZERO),
+        Err(WebhookError::InvalidSignature)
+    );
+    assert_eq!(
+        verify_webhook("secret", "sha256=bad", body, Duration::ZERO),
+        Err(WebhookError::InvalidSignature)
+    );
     let invalid = b"not json";
-    assert_eq!(verify_webhook("secret", &sign("secret", invalid), invalid, Duration::ZERO), Err(WebhookError::InvalidBody));
+    assert_eq!(
+        verify_webhook("secret", &sign("secret", invalid), invalid, Duration::ZERO),
+        Err(WebhookError::InvalidBody)
+    );
 }

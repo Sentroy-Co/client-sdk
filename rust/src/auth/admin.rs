@@ -75,8 +75,19 @@ impl SentroyAuthAdmin {
         if header.alg != Algorithm::RS256 { return Err(invalid("Only RS256 supported")); }
         let jwks = self.jwks().await?;
         let keys = jwks.get("keys").and_then(Value::as_array).ok_or_else(|| invalid("Malformed JWKS"))?;
-        let key = keys.iter().find(|k| k.get("kid").and_then(Value::as_str) == header.kid.as_deref())
-            .or_else(|| keys.first()).ok_or_else(|| invalid("No public key in JWKS"))?;
+        let kid = header.kid.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| invalid("Missing key id"))?;
+        let mut matching = keys.iter().filter(|k| k.get("kid").and_then(Value::as_str) == Some(kid));
+        let key = matching.next().ok_or_else(|| invalid("Unknown key id"))?;
+        if matching.next().is_some() { return Err(invalid("Ambiguous key id")); }
+        if key.get("alg").is_some_and(|v| v.as_str() != Some("RS256"))
+            || key.get("use").is_some_and(|v| v.as_str() != Some("sig")) {
+            return Err(invalid("JWKS key is not an RS256 signing key"));
+        }
+        if let Some(ops) = key.get("key_ops") {
+            if !ops.as_array().is_some_and(|ops| ops.iter().any(|v| v.as_str() == Some("verify"))) {
+                return Err(invalid("JWKS key cannot verify"));
+            }
+        }
         if key.get("kty").and_then(Value::as_str) != Some("RSA") { return Err(invalid("JWKS key is not RSA")); }
         let n = key.get("n").and_then(Value::as_str).ok_or_else(|| invalid("Missing RSA modulus"))?;
         let e = key.get("e").and_then(Value::as_str).ok_or_else(|| invalid("Missing RSA exponent"))?;
@@ -94,7 +105,7 @@ impl SentroyAuthAdmin {
         let iss = claims.get("iss").and_then(Value::as_str).ok_or_else(|| invalid("Issuer mismatch"))?;
         if iss != format!("{}/p/{}", self.client.base, self.client.slug) { return Err(invalid("Issuer mismatch")); }
         let aud = claims.get("aud").and_then(Value::as_str).ok_or_else(|| invalid("Audience mismatch"))?;
-        if aud.is_empty() || !self.api_key.starts_with(aud) { return Err(invalid("Audience mismatch")); }
+        if self.api_key.get(..12) != Some(aud) { return Err(invalid("Audience mismatch")); }
         Ok(claims)
     }
 }

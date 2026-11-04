@@ -53,7 +53,7 @@ impl Http {
             || url.fragment().is_some() || timeout.is_zero() {
             return Err(Error::InvalidInput("base URL must be HTTP(S), without credentials, query or fragment; timeout must be positive".into()));
         }
-        let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).timeout(timeout).build()?;
+        let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).retry(reqwest::retry::never()).timeout(timeout).build()?;
         Self { base, token: None, client }.with_token(token)
     }
     pub(crate) fn with_token(&self, token: Option<String>) -> Result<Self> {

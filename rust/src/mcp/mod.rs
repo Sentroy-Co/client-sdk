@@ -68,8 +68,9 @@ pub fn sentroy_mcp_resource_metadata(options: &McpResourceOptions) -> Result<Str
 }
 
 fn valid_token(token: &str) -> bool {
-    let suffix = token.strip_prefix("mcp_at_").or_else(|| token.strip_prefix("mcp_"));
-    suffix.is_some_and(|s| s.len() == 43 && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-'))
+    let valid_suffix = |s: &str| s.len() == 43 && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-');
+    token.strip_prefix("mcp_").is_some_and(valid_suffix)
+        || token.strip_prefix("mcp_at_").is_some_and(valid_suffix)
 }
 
 /// Connected official protocol client. Use `client.peer()` to call MCP methods.
