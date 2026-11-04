@@ -114,14 +114,39 @@ impl McpConnection {
             bounded(r,cap,expected).await
         }).await.map_err(|_| err("mcp_download_aborted"))?
     }
-    async fn put_file(&self, u: Url, body: &[u8], duration: Duration) -> Result<Vec<u8>, Error> {
+    async fn put_file(&self, u: Url, body: &[u8], duration: Duration, storage: bool) -> Result<Vec<u8>, Error> {
         // Once send starts, timeout, connection loss, or invalid response cannot
         // determine whether the server accepted the bytes. Never replay it.
         tokio::time::timeout(duration, async {
             let r = self.file_client.put(u).bearer_auth(&self.token)
                 .header(reqwest::header::CONTENT_TYPE,"application/octet-stream").body(body.to_vec())
                 .send().await.map_err(|_| err("mcp_upload_outcome_unknown"))?;
-            if r.status() != 200 { return Err(err("mcp_upload_failed")); }
+            let status = r.status().as_u16();
+            if status != 200 {
+                if status >= 500 { return Err(err("mcp_upload_outcome_unknown")); }
+                let mut safe = Value::Null;
+                if !storage && [400,409,413,422].contains(&status) {
+                    let data = bounded(r,4096,None).await.unwrap_or_default();
+                    if let Ok(value) = serde_json::from_slice::<Value>(&data) {
+                        let allowed = ["contact_import_columns","contact_import_row_limit","contact_import_csv_invalid",
+                            "contact_import_csv_columns","contact_import_csv_escaped_email","contact_import_tags_invalid",
+                            "contact_import_utf8_invalid","contact_import_nul","contact_import_json_invalid",
+                            "contact_import_row_invalid","contact_import_duplicate_email","contact_import_normalized_too_large",
+                            "contact_import_file_hash_mismatch","contact_import_upload_size_mismatch","contact_import_upload_too_large"];
+                        if let Some(reason) = value.get("error").and_then(Value::as_str).filter(|s| allowed.contains(s)) {
+                            safe = json!({"reason":reason});
+                            if let Some(row) = value.get("row").and_then(Value::as_u64).filter(|n| (1..=1_048_576).contains(n)) {
+                                safe["row"] = json!(row);
+                            }
+                        }
+                    }
+                }
+                return Err(Error::Http {status, message:"mcp_upload_failed".into(), body:safe});
+            }
+            if storage && !r.headers().get(reqwest::header::CONTENT_TYPE).and_then(|h|h.to_str().ok())
+                .is_some_and(|h|h.split(';').next().is_some_and(|v|v.trim()=="application/json")) {
+                return Err(err("mcp_upload_outcome_unknown"));
+            }
             bounded(r,4096,None).await.map_err(|_| err("mcp_upload_outcome_unknown"))
         }).await.map_err(|_| err("mcp_upload_outcome_unknown"))?
     }
@@ -175,9 +200,9 @@ impl McpConnection {
         let company=field(r,"companyId")?; let mailbox=field(r,"mailbox")?;
         let folder=field(r,"folder")?; let validity=field(r,"uidValidity")?;
         let uid=r.get("uid").and_then(Value::as_u64).unwrap_or(0);
-        if company.is_empty() || company.len()>100 || company.contains(['\r','\n','\0'])
+        if company.is_empty() || company.len()>100 || company.chars().any(|c| matches!(c, '\r' | '\n' | '\0'))
             || mailbox.len()>320 || mailbox.split('@').count()!=2 || mailbox.split('@').any(|s| s.is_empty() || s.chars().any(char::is_whitespace))
-            || folder.is_empty() || folder.len()>512 || folder.starts_with("__") || folder.contains(['\r','\n','\0'])
+            || folder.is_empty() || folder.len()>512 || folder.starts_with("__") || folder.chars().any(|c| matches!(c, '\r' | '\n' | '\0'))
             || validity.is_empty() || validity.len()>20 || validity.starts_with('0') || !validity.bytes().all(|b|b.is_ascii_digit())
             || uid==0 || uid>u32::MAX as u64 { return Err(err("invalid_mcp_reference")); }
         self.get_file(u,max,None,timeout(options,60_000)?).await
@@ -199,7 +224,7 @@ impl McpConnection {
         if body.len()!=n { return Err(err("mcp_contact_file_size_mismatch")); }
         if sha(body)!=hash { return Err(err("mcp_contact_file_hash_mismatch")); }
         if !date(&expires,true) { return Err(err("invalid_mcp_reference")); }
-        let data=self.put_file(u,body,timeout(options,15_000)?).await?;
+        let data=self.put_file(u,body,timeout(options,15_000)?,true).await?;
         let result: Value=serde_json::from_slice(&data).map_err(|_|err("mcp_upload_outcome_unknown"))?;
         if result.get("uploadId")!=v.get("uploadId") || result.get("state").and_then(Value::as_str)!=Some("ready")
             || result.get("fileHash").and_then(Value::as_str)!=Some(hash.as_str())
