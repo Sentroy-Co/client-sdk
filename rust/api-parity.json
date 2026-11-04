@@ -1,0 +1,846 @@
+{
+  "reference_commit": "326f131dec57c8e8a4dd6b2f8eb18020a772e861",
+  "description": "Root TypeScript resource async methods mapped to Rust public async methods. Checks API presence, not behavioral equivalence.",
+  "methods": [
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceListMembers",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "ListMembers",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceListMembers",
+        "method": "add"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "ListMembers",
+        "method": "add"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceListMembers",
+        "method": "remove"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "ListMembers",
+        "method": "remove"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceLists",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "AudienceLists",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceLists",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "AudienceLists",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceLists",
+        "method": "create"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "AudienceLists",
+        "method": "create"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceLists",
+        "method": "delete"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "AudienceLists",
+        "method": "delete"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceContacts",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Contacts",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceContacts",
+        "method": "search"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Contacts",
+        "method": "search"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceContacts",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Contacts",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceContacts",
+        "method": "create"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Contacts",
+        "method": "create"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceContacts",
+        "method": "update"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Contacts",
+        "method": "update"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/audience.ts",
+        "class": "AudienceContacts",
+        "method": "delete"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Contacts",
+        "method": "delete"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/buckets.ts",
+        "class": "Buckets",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "Buckets",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/buckets.ts",
+        "class": "Buckets",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "Buckets",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/buckets.ts",
+        "class": "Buckets",
+        "method": "create"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "Buckets",
+        "method": "create"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/buckets.ts",
+        "class": "Buckets",
+        "method": "update"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "Buckets",
+        "method": "update"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/buckets.ts",
+        "class": "Buckets",
+        "method": "delete"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "Buckets",
+        "method": "delete"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/domains.ts",
+        "class": "Domains",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Domains",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/domains.ts",
+        "class": "Domains",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Domains",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/inbox.ts",
+        "class": "Inbox",
+        "method": "saveDraft"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Inbox",
+        "method": "save_draft"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/inbox.ts",
+        "class": "Inbox",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Inbox",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/inbox.ts",
+        "class": "Inbox",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Inbox",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/inbox.ts",
+        "class": "Inbox",
+        "method": "listFolders"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Inbox",
+        "method": "list_folders"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/inbox.ts",
+        "class": "Inbox",
+        "method": "getThread"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Inbox",
+        "method": "get_thread"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/inbox.ts",
+        "class": "Inbox",
+        "method": "markAsRead"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Inbox",
+        "method": "mark_as_read"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/inbox.ts",
+        "class": "Inbox",
+        "method": "markAsUnread"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Inbox",
+        "method": "mark_as_unread"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/inbox.ts",
+        "class": "Inbox",
+        "method": "move"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Inbox",
+        "method": "move_message"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/inbox.ts",
+        "class": "Inbox",
+        "method": "delete"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Inbox",
+        "method": "delete"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/logs.ts",
+        "class": "Logs",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Logs",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/logs.ts",
+        "class": "Logs",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Logs",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/mailboxes.ts",
+        "class": "Mailboxes",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Mailboxes",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/media.ts",
+        "class": "MediaResource",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "MediaResource",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/media.ts",
+        "class": "MediaResource",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "MediaResource",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/media.ts",
+        "class": "MediaResource",
+        "method": "upload"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "MediaResource",
+        "method": "upload"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/media.ts",
+        "class": "MediaResource",
+        "method": "delete"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "MediaResource",
+        "method": "delete"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/media.ts",
+        "class": "MediaResource",
+        "method": "download"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "MediaResource",
+        "method": "download"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/send.ts",
+        "class": "Send",
+        "method": "email"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Send",
+        "method": "email"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/storage.ts",
+        "class": "Storage",
+        "method": "quota"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "Storage",
+        "method": "quota"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/storage.ts",
+        "class": "Storage",
+        "method": "usage"
+      },
+      "rust": {
+        "file": "rust/src/resources/storage.rs",
+        "type": "Storage",
+        "method": "usage"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/suppressions.ts",
+        "class": "Suppressions",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Suppressions",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/suppressions.ts",
+        "class": "Suppressions",
+        "method": "add"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Suppressions",
+        "method": "add"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/suppressions.ts",
+        "class": "Suppressions",
+        "method": "remove"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Suppressions",
+        "method": "remove"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/templates.ts",
+        "class": "Templates",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Templates",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/templates.ts",
+        "class": "Templates",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Templates",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/templates.ts",
+        "class": "Templates",
+        "method": "create"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Templates",
+        "method": "create"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/templates.ts",
+        "class": "Templates",
+        "method": "update"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Templates",
+        "method": "update"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/templates.ts",
+        "class": "Templates",
+        "method": "delete"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Templates",
+        "method": "delete"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/webhooks.ts",
+        "class": "WebhookDeliveries",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "WebhookDeliveries",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/webhooks.ts",
+        "class": "WebhookDeliveries",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "WebhookDeliveries",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/webhooks.ts",
+        "class": "WebhookDeliveries",
+        "method": "replay"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "WebhookDeliveries",
+        "method": "replay"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/webhooks.ts",
+        "class": "Webhooks",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Webhooks",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/webhooks.ts",
+        "class": "Webhooks",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Webhooks",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/webhooks.ts",
+        "class": "Webhooks",
+        "method": "create"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Webhooks",
+        "method": "create"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/webhooks.ts",
+        "class": "Webhooks",
+        "method": "update"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Webhooks",
+        "method": "update"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/webhooks.ts",
+        "class": "Webhooks",
+        "method": "delete"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Webhooks",
+        "method": "delete"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/webhooks.ts",
+        "class": "Webhooks",
+        "method": "test"
+      },
+      "rust": {
+        "file": "rust/src/resources/mail.rs",
+        "type": "Webhooks",
+        "method": "test"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppNumbers",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppNumbers",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppTemplates",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppTemplates",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppTemplates",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppTemplates",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppTemplates",
+        "method": "create"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppTemplates",
+        "method": "create"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppTemplates",
+        "method": "update"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppTemplates",
+        "method": "update"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppTemplates",
+        "method": "delete"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppTemplates",
+        "method": "delete"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppAudiences",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppAudiences",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppAudiences",
+        "method": "get"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppAudiences",
+        "method": "get"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppAudiences",
+        "method": "create"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppAudiences",
+        "method": "create"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppAudiences",
+        "method": "update"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppAudiences",
+        "method": "update"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppAudiences",
+        "method": "delete"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppAudiences",
+        "method": "delete"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsAppLogs",
+        "method": "list"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsAppLogs",
+        "method": "list"
+      }
+    },
+    {
+      "typescript": {
+        "file": "typescript/src/resources/whatsapp.ts",
+        "class": "WhatsApp",
+        "method": "send"
+      },
+      "rust": {
+        "file": "rust/src/resources/whatsapp.rs",
+        "type": "WhatsApp",
+        "method": "send"
+      }
+    }
+  ]
+}

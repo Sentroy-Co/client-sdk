@@ -1,0 +1,35 @@
+[package]
+name = "sentroy-client-sdk"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+description = "Async Rust client for Sentroy Mail, Storage, WhatsApp, Auth, Vault and MCP"
+license = "MIT"
+repository = "https://github.com/Sentroy-Co/client-sdk"
+homepage = "https://docs.sentroy.com"
+readme = "README.md"
+keywords = ["sentroy", "sdk", "email", "storage", "mcp"]
+categories = ["api-bindings", "web-programming::http-client"]
+
+[dependencies]
+base64 = "0.22"
+bytes = "1"
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+futures-util = "0.3"
+hmac = "0.12"
+jsonwebtoken = { version = "9.3.1", default-features = false }
+percent-encoding = "2"
+rand = "0.8"
+reqwest = { version = "0.12.28", default-features = false, features = ["rustls-tls", "json", "multipart", "stream"] }
+reqwest13 = { package = "reqwest", version = "0.13.2", default-features = false, features = ["rustls"] }
+rmcp = { version = "3.8.0", default-features = false, features = ["client", "transport-streamable-http-client-reqwest", "reqwest"] }
+sse-stream = "0.2.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["sync", "time", "fs", "io-util", "rt"] }
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util"] }
