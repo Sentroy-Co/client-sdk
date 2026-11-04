@@ -1,7 +1,7 @@
-use std::sync::{Arc, atomic::{AtomicUsize,Ordering}};
+use std::sync::{Arc, Mutex, atomic::{AtomicUsize,Ordering}};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::{json,Value};
-use sentroy_client_sdk::mcp::{connect_sentroy_mcp, McpApp, McpResourceOptions};
+use sentroy_client_sdk::mcp::{connect_sentroy_mcp, connect_sentroy_mcp_with_provider, McpApp, McpResourceOptions, McpTokenProvider, McpClientInfo};
 use tokio::{io::{AsyncReadExt,AsyncWriteExt},net::TcpListener};
 
 const HASH: &str = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
@@ -10,14 +10,15 @@ const CONNECTION: &str = "0123456789abcdef01234567";
 const EXPIRY: &str = "2099-01-01T00:00:00.000Z";
 const REV: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-async fn mock() -> (String, Arc<AtomicUsize>, tokio::task::JoinHandle<()>) {
+async fn mock() -> (String, Arc<AtomicUsize>, Arc<Mutex<Vec<String>>>, tokio::task::JoinHandle<()>) {
     let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address=listener.local_addr().unwrap();
     let count=Arc::new(AtomicUsize::new(0)); let counter=count.clone();
+    let seen=Arc::new(Mutex::new(Vec::new())); let events=seen.clone();
     let task=tokio::spawn(async move {
         loop {
             let Ok((mut socket,_))=listener.accept().await else { break; };
-            let counter=counter.clone();
+            let counter=counter.clone(); let events=events.clone();
             tokio::spawn(async move {
                 let mut data=Vec::new(); let mut buf=[0u8;4096];
                 let end=loop {
@@ -35,12 +36,14 @@ async fn mock() -> (String, Arc<AtomicUsize>, tokio::task::JoinHandle<()>) {
                     let Ok(n)=socket.read(&mut buf).await else{return}; if n==0{return}
                     data.extend_from_slice(&buf[..n]);
                 }
+                events.lock().unwrap().push(format!("{} {}", header.to_ascii_lowercase(), String::from_utf8_lossy(&data[end..end+len])));
                 let line=header.lines().next().unwrap_or("");
                 let mut parts=line.split_whitespace(); let method=parts.next().unwrap_or(""); let path=parts.next().unwrap_or("");
                 let (status,content_type,body)=if path.starts_with("/mcp/acme/") {
                     counter.fetch_add(1,Ordering::SeqCst);
-                    let bearer = format!("authorization: bearer mcp_{}", "a".repeat(43));
-                    if !header.to_ascii_lowercase().contains(&bearer) { return; }
+                    let a = format!("authorization: bearer mcp_{}", "a".repeat(43));
+                    let b = format!("authorization: bearer mcp_{}", "b".repeat(43));
+                    if !header.to_ascii_lowercase().contains(&a) && !header.to_ascii_lowercase().contains(&b) { return; }
                     if path.contains("ffffffffffffffffffffffff") { return; }
                     if path.contains("/contacts/imports/") {
                         ("200 OK","application/json",json!({"uploadId":ID,"state":"ready","count":1,"fileHash":HASH,"expiresAt":EXPIRY}).to_string())
@@ -52,6 +55,8 @@ async fn mock() -> (String, Arc<AtomicUsize>, tokio::task::JoinHandle<()>) {
                     let message: Value=serde_json::from_slice(&data[end..end+len]).unwrap_or(Value::Null);
                     if message.get("method").and_then(Value::as_str)==Some("initialize") {
                         ("200 OK","application/json",json!({"jsonrpc":"2.0","id":message["id"],"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"mock","version":"1"}}}).to_string())
+                    } else if message.get("method").and_then(Value::as_str)==Some("ping") {
+                        ("200 OK","application/json",json!({"jsonrpc":"2.0","id":message["id"],"result":{}}).to_string())
                     } else {("202 Accepted","application/json",String::new())}
                 } else { ("405 Method Not Allowed","text/plain",String::new()) };
                 let response=format!("HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len());
@@ -59,14 +64,14 @@ async fn mock() -> (String, Arc<AtomicUsize>, tokio::task::JoinHandle<()>) {
             });
         }
     });
-    (format!("http://{address}"),count,task)
+    (format!("http://{address}"),count,seen,task)
 }
 fn options(app:McpApp, origin:&str)->McpResourceOptions {
     McpResourceOptions { app,company_slug:"acme".into(),origin:Some(origin.into()) }
 }
 #[tokio::test]
 async fn private_transfers_bind_targets_and_validate_contents() {
-    let (origin,count,task)=mock().await;
+    let (origin,count,_seen,task)=mock().await;
     let token=format!("mcp_{}", "a".repeat(43));
     let mail=connect_sentroy_mcp(&options(McpApp::Mail,&origin),&token).await.unwrap();
     let base=format!("{origin}/mcp/acme");
@@ -105,5 +110,42 @@ async fn private_transfers_bind_targets_and_validate_contents() {
     let error=mail.upload_mail_contacts_import(&disconnected,b"abc",None).await.unwrap_err();
     assert!(error.to_string().contains("mcp_upload_outcome_unknown"));
     assert_eq!(count.load(Ordering::SeqCst),7);
+    task.abort();
+}
+
+#[tokio::test]
+async fn token_provider_refreshes_rpc_and_private_requests_and_closes() {
+    let (origin,_count,seen,task)=mock().await;
+    let current=Arc::new(Mutex::new(format!("mcp_{}", "a".repeat(43))));
+    let source=current.clone();
+    let provider=McpTokenProvider::new(move || {
+        let token=source.lock().unwrap().clone();
+        async move { Ok(token) }
+    });
+    let mut client=connect_sentroy_mcp_with_provider(&options(McpApp::Mail,&origin), provider,
+        Some(McpClientInfo {name:"custom-client".into(),version:"9".into()})).await.unwrap();
+    *current.lock().unwrap()=format!("mcp_{}", "b".repeat(43));
+    client.client.peer().ping().await.unwrap();
+    let base=format!("{origin}/mcp/acme");
+    let export=json!({"exportId":ID,"format":"csv","bytes":3,"fileHash":HASH,"expiresAt":EXPIRY,
+        "downloadUrl":format!("{base}/contacts/exports/{ID}?connection={CONNECTION}&hash={HASH}"),"requiresOriginalBearer":true});
+    assert_eq!(client.download_mail_contacts_export(&export,None).await.unwrap(),b"abc");
+    let events=seen.lock().unwrap().clone();
+    assert!(events.iter().any(|e|e.contains("custom-client") && e.contains("\"version\":\"9\"")));
+    let b=format!("authorization: bearer mcp_{}", "b".repeat(43));
+    assert!(events.iter().any(|e|e.contains("\"method\":\"ping\"") && e.contains(&b)));
+    assert!(events.iter().any(|e|e.contains("/contacts/exports/") && e.contains(&b)));
+    client.close().await.unwrap();
+    assert!(client.client.is_closed());
+    task.abort();
+}
+
+#[tokio::test]
+async fn invalid_provider_fails_before_network_io() {
+    let (origin,_count,seen,task)=mock().await;
+    let provider=McpTokenProvider::new(|| async { Ok("stk_not_an_mcp_token".to_owned()) });
+    let result=connect_sentroy_mcp_with_provider(&options(McpApp::Mail,&origin),provider,None).await;
+    assert!(result.is_err());
+    assert!(seen.lock().unwrap().is_empty());
     task.abort();
 }
