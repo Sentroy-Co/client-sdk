@@ -76,6 +76,9 @@ fn valid_token(token: &str) -> bool {
 pub struct McpConnection {
     pub resource: String,
     pub client: RunningService<RoleClient, ()>,
+    app: McpApp,
+    token: String,
+    file_client: reqwest::Client,
 }
 
 /// Connect with a personal MCP token or externally managed MCP OAuth access
@@ -83,6 +86,10 @@ pub struct McpConnection {
 pub async fn connect_sentroy_mcp(options: &McpResourceOptions, token: &str) -> Result<McpConnection, Error> {
     let resource = sentroy_mcp_resource(options)?;
     if !valid_token(token) { return Err(invalid("invalid_mcp_token")); }
+    let file_client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .retry(reqwest::retry::never())
+        .build().map_err(|_| invalid("mcp_connection_failed"))?;
     let client = reqwest13::Client::builder()
         .redirect(reqwest13::redirect::Policy::none())
         .retry(reqwest13::retry::never())
@@ -94,9 +101,11 @@ pub async fn connect_sentroy_mcp(options: &McpResourceOptions, token: &str) -> R
     config.retry_config = Arc::new(NeverRetry::default());
     let transport = StreamableHttpClientTransport::with_client(client, config);
     let service = ().serve(transport).await.map_err(|_| invalid("mcp_connection_failed"))?;
-    Ok(McpConnection { resource, client: service })
+    Ok(McpConnection { resource, client: service, app: options.app, token: token.to_owned(), file_client })
 }
 
+mod transfers;
+pub use transfers::TransferOptions;
 mod file_info;
 pub use file_info::{ContactImportFileInfo, StorageUploadFileInfo, sentroy_mcp_contact_import_file_info, sentroy_mcp_storage_upload_file_info};
 
