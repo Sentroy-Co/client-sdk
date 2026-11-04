@@ -242,6 +242,17 @@ async fn uploads_never_follow_redirects_or_replay_unknown_outcomes() {
         "bucket":{"id":CONNECTION,"slug":"bucket","revision":REV},"state":"waiting","revision":REV,"published":false,
         "malwareScanned":false,"requiresHumanApproval":true,"requiresOriginalBearer":true,"method":"PUT",
         "contentType":"application/octet-stream","uploadUrl":format!("{base}/uploads/{ID}?connection={CONNECTION}")});
+    let before_storage=count.load(Ordering::SeqCst);
+    let mut wrong_bucket=upload.clone(); wrong_bucket["bucket"]["revision"]=json!("invalid");
+    assert!(storage.upload_storage_file(&wrong_bucket,b"abc",None).await.is_err());
+    let mut wrong_type=upload.clone(); wrong_type["contentType"]=json!("text/plain");
+    assert!(storage.upload_storage_file(&wrong_type,b"abc",None).await.is_err());
+    let mut wrong_id=upload.clone();
+    wrong_id["uploadUrl"]=json!(format!("{base}/uploads/123e4567-e89b-42d3-a456-426614174001?connection={CONNECTION}"));
+    assert!(storage.upload_storage_file(&wrong_id,b"abc",None).await.is_err());
+    assert!(storage.upload_storage_file(&upload,b"bad",None).await.is_err());
+    assert!(storage.upload_storage_file(&upload,b"ab",None).await.is_err());
+    assert_eq!(count.load(Ordering::SeqCst),before_storage);
     for (index, connection) in ["222222222222222222222222","333333333333333333333333","444444444444444444444444",
         "666666666666666666666666","777777777777777777777777"].iter().enumerate() {
         let mut value=upload.clone(); value["uploadUrl"]=json!(format!("{base}/uploads/{ID}?connection={connection}"));
