@@ -191,7 +191,7 @@ impl SentroyAuth {
     /// Typed login preserving additional server fields in the response.
     pub async fn sign_in_typed(&self, input: &SignInRequest) -> Result<TypedLoginOutcome> {
         match self.sign_in(serde_json::to_value(input)?).await? {
-            LoginOutcome::Tokens(v) => Ok(TypedLoginOutcome::Tokens(serde_json::from_value(v)?)),
+            LoginOutcome::Tokens(v) => Ok(TypedLoginOutcome::Tokens(Box::new(serde_json::from_value(v)?))),
             LoginOutcome::Mfa(v) => Ok(TypedLoginOutcome::Mfa(serde_json::from_value(v)?)),
         }
     }
@@ -342,7 +342,12 @@ impl SentroyAuth {
         Ok(url.to_string())
     }
     pub async fn current_user(&self) -> Result<Value> {
-        let token = self.state.lock().await.session.as_ref()
+        let token = self
+            .state
+            .lock()
+            .await
+            .session
+            .as_ref()
             .map(|s| s.access_token.clone())
             .ok_or_else(|| Error::InvalidInput("Not signed in — access token missing".into()))?;
         let v: Value = self

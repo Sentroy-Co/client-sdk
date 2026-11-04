@@ -61,7 +61,7 @@ pub struct SentroyBuilder {
 impl std::fmt::Debug for SentroyBuilder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SentroyBuilder")
-            .field("base_url", &self.base_url)
+            .field("base_url", &"[configured]")
             .field("company_slug", &self.company_slug)
             .field("authenticated", &self.token.is_some())
             .field("timeout", &self.timeout)

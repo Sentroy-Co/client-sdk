@@ -302,7 +302,10 @@ mod tests {
     use serde_json::json;
     #[test]
     fn encoded_segments_cannot_escape_the_company_route() {
-        assert_eq!(segment("tenant/name?x=#").unwrap(), "tenant%2Fname%3Fx%3D%23");
+        assert_eq!(
+            segment("tenant/name?x=#").unwrap(),
+            "tenant%2Fname%3Fx%3D%23"
+        );
         assert!(segment("..").is_err());
         assert!(segment(".").is_err());
         assert!(segment("bad\r\nheader").is_err());
@@ -310,27 +313,45 @@ mod tests {
     #[test]
     fn queries_preserve_false_zero_and_explicit_lists() {
         let q = query(&json!({"none":null,"enabled":false,"page":0,"tags":["a","b"]})).unwrap();
-        assert!(!q.iter().any(|(k,_)| k=="none"));
-        assert!(q.contains(&("enabled".into(),"false".into())));
-        assert!(q.contains(&("page".into(),"0".into())));
-        assert!(q.contains(&("tags".into(),"a,b".into())));
+        assert!(!q.iter().any(|(k, _)| k == "none"));
+        assert!(q.contains(&("enabled".into(), "false".into())));
+        assert!(q.contains(&("page".into(), "0".into())));
+        assert!(q.contains(&("tags".into(), "a,b".into())));
         assert!(query(&json!({"nested":{"bad":true}})).is_err());
     }
     #[test]
     fn credentials_are_redacted_and_header_injection_is_refused() {
-        let h = Http::new("https://sentroy.com", Some("sdk-test-secret".into()), Duration::from_secs(1)).unwrap();
+        let h = Http::new(
+            "https://sentroy.com",
+            Some("sdk-test-secret".into()),
+            Duration::from_secs(1),
+        )
+        .unwrap();
         assert!(!format!("{h:?}").contains("sdk-test-secret"));
-        let r = h.request(Method::GET,"/test",&[]).unwrap().build().unwrap();
+        let r = h
+            .request(Method::GET, "/test", &[])
+            .unwrap()
+            .build()
+            .unwrap();
         assert_eq!(r.headers()[header::AUTHORIZATION], "Bearer sdk-test-secret");
         assert!(h.with_token(Some("bad\r\ninjected: yes".into())).is_err());
-        let e = Error::Http {status:403,message:"forbidden".into(),body:json!({"secret":"sdk-test-secret"})};
+        let e = Error::Http {
+            status: 403,
+            message: "forbidden".into(),
+            body: json!({"secret":"sdk-test-secret"}),
+        };
         assert!(!format!("{e:?}").contains("sdk-test-secret"));
     }
     #[test]
     fn origin_validation_rejects_embedded_credentials_and_zero_timeout() {
-        for u in ["file:///tmp/test", "https://user:password@sentroy.com", "https://sentroy.com/?token=x", "https://sentroy.com/#secret"] {
-            assert!(Http::new(u,None,Duration::from_secs(1)).is_err());
+        for u in [
+            "file:///tmp/test",
+            "https://user:password@sentroy.com",
+            "https://sentroy.com/?token=x",
+            "https://sentroy.com/#secret",
+        ] {
+            assert!(Http::new(u, None, Duration::from_secs(1)).is_err());
         }
-        assert!(Http::new("https://sentroy.com",None,Duration::ZERO).is_err());
+        assert!(Http::new("https://sentroy.com", None, Duration::ZERO).is_err());
     }
 }

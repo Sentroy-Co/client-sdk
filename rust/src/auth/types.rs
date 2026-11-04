@@ -92,7 +92,7 @@ impl std::fmt::Debug for MfaChallenge {
 }
 #[derive(Debug, Clone)]
 pub enum TypedLoginOutcome {
-    Tokens(LoginResponse),
+    Tokens(Box<LoginResponse>),
     Mfa(MfaChallenge),
 }
 #[derive(Clone, Serialize, Deserialize)]
