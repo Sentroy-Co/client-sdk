@@ -202,3 +202,90 @@ pub struct PasskeySummary {
     #[serde(flatten)]
     pub extra: serde_json::Map<String, Value>,
 }
+
+
+/// Tokens returned by a successful rotation.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthTokensResponse {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub expires_in: u64,
+    pub token_type: String,
+    #[serde(flatten)] pub extra: serde_json::Map<String, Value>,
+}
+impl std::fmt::Debug for AuthTokensResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthTokensResponse").field("tokens", &"[REDACTED]").field("expires_in", &self.expires_in).finish()
+    }
+}
+/// Signup may require email verification, in which case tokens are absent.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignupResponse {
+    pub user: AuthUser,
+    pub access_token: Option<String>,
+    pub refresh_token: Option<String>,
+    pub expires_in: Option<u64>,
+    pub token_type: Option<String>,
+    pub email_verification_required: Option<bool>,
+    #[serde(flatten)] pub extra: serde_json::Map<String, Value>,
+}
+impl std::fmt::Debug for SignupResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SignupResponse").field("user", &self.user).field("tokens", &"[REDACTED]").field("email_verification_required", &self.email_verification_required).finish()
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserResponse {
+    pub user: AuthUser,
+    #[serde(flatten)] pub extra: serde_json::Map<String, Value>,
+}
+macro_rules! secret_debug {
+    ($($name:ident),+ $(,)?) => {$(
+        impl std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str(concat!(stringify!($name), "([REDACTED])"))
+            }
+        }
+    )+};
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignupRequest {
+    pub email: String,
+    pub password: String,
+    #[serde(skip_serializing_if = "Option::is_none")] pub display_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")] pub metadata: Option<Value>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MfaVerifyRequest {
+    pub mfa_token: String,
+    #[serde(skip_serializing_if = "Option::is_none")] pub code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")] pub recovery_code: Option<String>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PasswordResetConfirmRequest { pub token: String, pub new_password: String }
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MagicLinkRequest {
+    pub email: String,
+    #[serde(skip_serializing_if = "Option::is_none")] pub redirect_uri: Option<String>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AcceptInvitationRequest {
+    pub token: String,
+    pub password: String,
+    #[serde(skip_serializing_if = "Option::is_none")] pub display_name: Option<String>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangePasswordRequest { pub current_password: String, pub new_password: String }
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeEmailRequest { pub new_email: String, pub current_password: String }
+secret_debug!(SignupRequest, MfaVerifyRequest, PasswordResetConfirmRequest, MagicLinkRequest,
+    AcceptInvitationRequest, ChangePasswordRequest, ChangeEmailRequest);
