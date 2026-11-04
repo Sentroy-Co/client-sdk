@@ -53,6 +53,11 @@ async fn mock() -> (String, Arc<AtomicUsize>, Arc<Mutex<Vec<String>>>, tokio::ta
                         ("200 OK","application/json","{".to_owned())
                     } else if path.contains("444444444444444444444444") {
                         ("200 OK","application/json","x".repeat(4097))
+                    } else if path.contains("666666666666666666666666") {
+                        ("200 OK","application/json",json!({"uploadId":ID,"name":"test.txt","mimeType":"text/plain","bytes":3,"sha256":HASH,"expiresAt":EXPIRY,
+                            "bucket":{"id":CONNECTION,"slug":"other-bucket","revision":REV},"state":"ready","revision":REV,"published":false,"malwareScanned":false,"requiresHumanApproval":true}).to_string())
+                    } else if path.contains("777777777777777777777777") {
+                        ("200 OK","text/plain","{}".to_owned())
                     } else if path.contains("555555555555555555555555") {
                         ("200 OK","application/octet-stream","xyz".to_owned())
                     } else if path.contains("/contacts/imports/") {
@@ -237,7 +242,8 @@ async fn uploads_never_follow_redirects_or_replay_unknown_outcomes() {
         "bucket":{"id":CONNECTION,"slug":"bucket","revision":REV},"state":"waiting","revision":REV,"published":false,
         "malwareScanned":false,"requiresHumanApproval":true,"requiresOriginalBearer":true,"method":"PUT",
         "contentType":"application/octet-stream","uploadUrl":format!("{base}/uploads/{ID}?connection={CONNECTION}")});
-    for (index, connection) in ["222222222222222222222222","333333333333333333333333","444444444444444444444444"].iter().enumerate() {
+    for (index, connection) in ["222222222222222222222222","333333333333333333333333","444444444444444444444444",
+        "666666666666666666666666","777777777777777777777777"].iter().enumerate() {
         let mut value=upload.clone(); value["uploadUrl"]=json!(format!("{base}/uploads/{ID}?connection={connection}"));
         let error=storage.upload_storage_file(&value,b"abc",None).await.unwrap_err();
         assert!(error.to_string().contains("mcp_upload_outcome_unknown"));
