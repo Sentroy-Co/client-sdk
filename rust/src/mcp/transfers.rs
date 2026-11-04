@@ -224,7 +224,7 @@ impl McpConnection {
         if body.len()!=n { return Err(err("mcp_contact_file_size_mismatch")); }
         if sha(body)!=hash { return Err(err("mcp_contact_file_hash_mismatch")); }
         if !date(&expires,true) { return Err(err("invalid_mcp_reference")); }
-        let data=self.put_file(u,body,timeout(options,15_000)?,true).await?;
+        let data=self.put_file(u,body,timeout(options,15_000)?,false).await?;
         let result: Value=serde_json::from_slice(&data).map_err(|_|err("mcp_upload_outcome_unknown"))?;
         if result.get("uploadId")!=v.get("uploadId") || result.get("state").and_then(Value::as_str)!=Some("ready")
             || result.get("fileHash").and_then(Value::as_str)!=Some(hash.as_str())
@@ -256,7 +256,7 @@ impl McpConnection {
         if u.path()!=format!("{}/uploads/{id}",resource_path(self)?) { return Err(err("invalid_mcp_reference")); }
         query(&u,&["connection"])?;
         if !date(expires,true) { return Err(err("invalid_mcp_reference")); }
-        let data=self.put_file(u,body,timeout(options,15_000)?).await?;
+        let data=self.put_file(u,body,timeout(options,15_000)?,true).await?;
         let result: Value=serde_json::from_slice(&data).map_err(|_|err("mcp_upload_outcome_unknown"))?;
         let rb=result.get("bucket").ok_or_else(||err("mcp_upload_outcome_unknown"))?;
         for key in ["uploadId","name","mimeType","bytes","sha256","expiresAt"] {
