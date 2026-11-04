@@ -50,7 +50,7 @@ fn social_url_encodes_redirect() {
 }
 
 // The following loopback server reads one request and closes after its reply.
-async fn request_head(stream: &mut tokio::net::TcpStream) {
+async fn request_head(stream: &mut tokio::net::TcpStream) -> String {
     use tokio::io::AsyncReadExt;
     let mut buf = [0u8; 4096];
     let mut data = Vec::new();
@@ -62,7 +62,7 @@ async fn request_head(stream: &mut tokio::net::TcpStream) {
         assert!(n > 0);
         data.extend_from_slice(&buf[..n]);
     };
-    let headers = String::from_utf8_lossy(&data[..header_end]);
+    let headers = String::from_utf8_lossy(&data[..header_end]).into_owned();
     let content_length = headers
         .lines()
         .find_map(|line| {
@@ -79,6 +79,7 @@ async fn request_head(stream: &mut tokio::net::TcpStream) {
         assert!(n > 0);
         data.extend_from_slice(&buf[..n]);
     }
+    headers
 }
 async fn reply(stream: &mut tokio::net::TcpStream, body: &str) {
     use tokio::io::AsyncWriteExt;
@@ -276,5 +277,49 @@ async fn cancelled_refresh_does_not_replay_token() {
     let _ = task.await;
     assert!(client.session().await.is_none());
     assert!(client.refresh().await.is_err());
+    server.await.unwrap();
+}
+
+
+#[tokio::test]
+async fn fragment_uses_user_bearer_and_preserves_session_on_failure() {
+    use tokio::io::AsyncWriteExt;
+    use sentroy_client_sdk::auth::PasswordResetConfirmRequest;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        let (mut valid, _) = listener.accept().await.unwrap();
+        let head = request_head(&mut valid).await.to_ascii_lowercase();
+        assert!(head.starts_with("get /api/v1/auth/demo/me "));
+        assert!(head.contains("authorization: bearer access-one\r\n"));
+        reply(&mut valid, r#"{"id":"user-one"}"#).await;
+
+        let (mut invalid, _) = listener.accept().await.unwrap();
+        let head = request_head(&mut invalid).await.to_ascii_lowercase();
+        assert!(head.contains("authorization: bearer bad-token\r\n"));
+        let body = r#"{"error":"invalid_token","error_description":"invalid"}"#;
+        let response = format!("HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body);
+        invalid.write_all(response.as_bytes()).await.unwrap();
+
+        let (mut reset, _) = listener.accept().await.unwrap();
+        let head = request_head(&mut reset).await.to_ascii_lowercase();
+        assert!(head.starts_with("post /api/v1/auth/demo/password-reset/confirm "));
+        assert!(head.contains("authorization: bearer project-api-key\r\n"));
+        reply(&mut reset, r#"{"user":{"id":"u1","authProjectId":"p1","email":"a@example.com","emailVerified":true,"displayName":null,"image":null,"metadata":{},"lastLoginAt":null,"createdAt":"now","updatedAt":"now"}}"#).await;
+    });
+    let client = SentroyAuth::new(base, "demo", Some("project-api-key".into()), Duration::from_secs(2)).unwrap();
+    client.set_session(session_with("original")).await;
+    assert!(client.consume_redirect_fragment("#access_token=only").await.unwrap().is_none());
+    assert_eq!(client.session().await.unwrap().user["id"], "original");
+    assert!(client.consume_redirect_fragment("#access_token=a&access_token=b&refresh_token=c").await.is_err());
+    let user = client.consume_redirect_fragment("#access_token=access-one&refresh_token=refresh-one").await.unwrap().unwrap();
+    assert_eq!(user["id"], "user-one");
+    assert_eq!(client.session().await.unwrap().refresh_token, "refresh-one");
+    assert!(client.consume_redirect_fragment("#access_token=bad-token&refresh_token=bad-refresh").await.is_err());
+    assert_eq!(client.session().await.unwrap().user["id"], "user-one");
+    let input = PasswordResetConfirmRequest { token: "secret-token".into(), new_password: "secret-password".into() };
+    assert!(!format!("{input:?}").contains("secret"));
+    let result = client.confirm_password_reset_typed(&input).await.unwrap();
+    assert_eq!(result.user.id, "u1");
     server.await.unwrap();
 }
