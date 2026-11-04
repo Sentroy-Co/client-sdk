@@ -34,7 +34,18 @@ async fn request_head(stream: &mut tokio::net::TcpStream) {
     use tokio::io::AsyncReadExt;
     let mut buf = [0u8; 4096];
     let mut data = Vec::new();
-    while !data.windows(4).any(|v| v == b"\r\n\r\n") {
+    let header_end = loop {
+        if let Some(pos) = data.windows(4).position(|v| v == b"\r\n\r\n") { break pos + 4; }
+        let n = stream.read(&mut buf).await.unwrap();
+        assert!(n > 0);
+        data.extend_from_slice(&buf[..n]);
+    };
+    let headers = String::from_utf8_lossy(&data[..header_end]);
+    let content_length = headers.lines().find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        if name.eq_ignore_ascii_case("content-length") { value.trim().parse::<usize>().ok() } else { None }
+    }).unwrap_or(0);
+    while data.len() < header_end + content_length {
         let n = stream.read(&mut buf).await.unwrap();
         assert!(n > 0);
         data.extend_from_slice(&buf[..n]);
