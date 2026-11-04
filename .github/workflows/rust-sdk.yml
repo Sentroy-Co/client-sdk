@@ -1,10 +1,10 @@
 name: Rust SDK
 on:
   pull_request:
-    paths: ["rust/**", "Cargo.toml", "Cargo.lock", ".github/workflows/rust-sdk.yml"]
+    paths: ["rust/**", "Cargo.toml", "Cargo.lock", ".github/workflows/rust-sdk.yml", "scripts/check_rust_parity.py", "typescript/src/**"]
   push:
     branches: [main]
-    paths: ["rust/**", "Cargo.toml", "Cargo.lock", ".github/workflows/rust-sdk.yml"]
+    paths: ["rust/**", "Cargo.toml", "Cargo.lock", ".github/workflows/rust-sdk.yml", "scripts/check_rust_parity.py", "typescript/src/**"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -52,6 +52,6 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - name: Install minimum Rust
-        run: rustup toolchain install 1.88.0 --profile minimal
+        run: rustup toolchain install 1.89.0 --profile minimal
       - name: Check minimum supported Rust
-        run: cargo +1.88.0 check --workspace --all-targets --all-features --locked
+        run: cargo +1.89.0 check --workspace --all-targets --all-features --locked

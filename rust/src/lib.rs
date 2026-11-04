@@ -1,5 +1,4 @@
-//! Native async Rust client for the Sentroy platform.
-//! See the crate README for authentication, module coverage and recovery behavior.
+#![doc = include_str!("../README.md")]
 pub mod auth;
 mod error;
 pub(crate) mod http;

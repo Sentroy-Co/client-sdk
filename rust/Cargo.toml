@@ -2,7 +2,7 @@
 name = "sentroy-client-sdk"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.88"
+rust-version = "1.89"
 description = "Async Rust client for Sentroy Mail, Storage, WhatsApp, Auth, Vault and MCP"
 license = "MIT"
 repository = "https://github.com/Sentroy-Co/client-sdk"
