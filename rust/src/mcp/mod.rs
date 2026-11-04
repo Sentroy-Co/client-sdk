@@ -4,6 +4,8 @@
 //! acquires credentials, follows redirects, or replays requests on session expiry.
 
 use crate::Error;
+/// Official MCP protocol types used by the exposed client.
+pub use rmcp as protocol;
 use rmcp::{
     model::{ClientConfig, Implementation},
     service::{RoleClient, RunningService},

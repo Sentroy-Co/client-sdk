@@ -323,3 +323,26 @@ async fn fragment_uses_user_bearer_and_preserves_session_on_failure() {
     assert_eq!(result.user.id, "u1");
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn email_verification_updates_only_the_matching_session_user() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        let (mut first, _) = listener.accept().await.unwrap();
+        assert!(request_head(&mut first).await.starts_with("POST /api/v1/auth/demo/verify-email "));
+        reply(&mut first, r#"{"user":{"id":"old","emailVerified":true}}"#).await;
+        let (mut other, _) = listener.accept().await.unwrap();
+        request_head(&mut other).await;
+        reply(&mut other, r#"{"user":{"id":"other","emailVerified":false}}"#).await;
+    });
+    let client = SentroyAuth::new(base, "demo", None, Duration::from_secs(2)).unwrap();
+    client.set_session(session_with("old")).await;
+    client.verify_email("verification-token").await.unwrap();
+    assert_eq!(client.session().await.unwrap().user["emailVerified"], true);
+    client.verify_email("another-user-token").await.unwrap();
+    let current = client.session().await.unwrap();
+    assert_eq!(current.user["id"], "old");
+    assert_eq!(current.user["emailVerified"], true);
+    server.await.unwrap();
+}

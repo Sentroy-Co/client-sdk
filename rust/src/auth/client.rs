@@ -306,7 +306,18 @@ impl SentroyAuth {
         self.request_email_change(serde_json::to_value(input)?).await
     }
     pub async fn verify_email(&self, token: &str) -> Result<Value> {
-        self.post("/verify-email", json!({"token":token})).await
+        let response = self.post("/verify-email", json!({"token":token})).await?;
+        if let Some(user) = response.get("user") {
+            let mut state = self.state.lock().await;
+            if let Some(session) = state.session.as_mut() {
+                if user.get("id").and_then(Value::as_str).is_some()
+                    && session.user.get("id") == user.get("id")
+                {
+                    session.user = user.clone();
+                }
+            }
+        }
+        Ok(response)
     }
     pub async fn send_magic_link(&self, input: Value) -> Result<Value> {
         self.post("/magic-link/request", input).await
@@ -538,11 +549,11 @@ impl SentroyAuth {
         response: Value,
         device_name: Option<&str>,
     ) -> Result<Value> {
-        self.post_auth(
-            "/me/passkey/register/complete",
-            json!({"challengeToken":challenge_token,"response":response,"deviceName":device_name}),
-        )
-        .await
+        let mut body = json!({"challengeToken":challenge_token,"response":response});
+        if let Some(name) = device_name {
+            body["deviceName"] = json!(name);
+        }
+        self.post_auth("/me/passkey/register/complete", body).await
     }
     pub async fn begin_passkey_authentication(&self, email: Option<&str>) -> Result<Value> {
         let mut body = serde_json::Map::new();
