@@ -91,7 +91,7 @@ pub async fn connect_sentroy_mcp(options: &McpResourceOptions, token: &str) -> R
         .auth_header(token)
         .reinit_on_expired_session(false)
         .max_sse_event_size(1024 * 1024);
-    config.retry_config = Arc::new(NeverRetry);
+    config.retry_config = Arc::new(NeverRetry::default());
     let transport = StreamableHttpClientTransport::with_client(client, config);
     let service = ().serve(transport).await.map_err(|_| invalid("mcp_connection_failed"))?;
     Ok(McpConnection { resource, client: service })
