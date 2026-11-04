@@ -54,9 +54,9 @@ async fn mock() -> (String, Arc<AtomicUsize>, Arc<Mutex<Vec<String>>>, tokio::ta
                 } else if method=="POST" {
                     let message: Value=serde_json::from_slice(&data[end..end+len]).unwrap_or(Value::Null);
                     if message.get("method").and_then(Value::as_str)==Some("initialize") {
-                        ("200 OK","application/json",json!({"jsonrpc":"2.0","id":message["id"],"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"mock","version":"1"}}}).to_string())
-                    } else if message.get("method").and_then(Value::as_str)==Some("ping") {
-                        ("200 OK","application/json",json!({"jsonrpc":"2.0","id":message["id"],"result":{}}).to_string())
+                        ("200 OK","application/json",json!({"jsonrpc":"2.0","id":message["id"],"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"mock","version":"1"}}}).to_string())
+                    } else if message.get("method").and_then(Value::as_str)==Some("tools/list") {
+                        ("200 OK","application/json",json!({"jsonrpc":"2.0","id":message["id"],"result":{"tools":[]}}).to_string())
                     } else {("202 Accepted","application/json",String::new())}
                 } else { ("405 Method Not Allowed","text/plain",String::new()) };
                 let response=format!("HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len());
@@ -125,7 +125,7 @@ async fn token_provider_refreshes_rpc_and_private_requests_and_closes() {
     let mut client=connect_sentroy_mcp_with_provider(&options(McpApp::Mail,&origin), provider,
         Some(McpClientInfo {name:"custom-client".into(),version:"9".into()})).await.unwrap();
     *current.lock().unwrap()=format!("mcp_{}", "b".repeat(43));
-    client.client.peer().ping().await.unwrap();
+    client.client.peer().list_tools(None).await.unwrap();
     let base=format!("{origin}/mcp/acme");
     let export=json!({"exportId":ID,"format":"csv","bytes":3,"fileHash":HASH,"expiresAt":EXPIRY,
         "downloadUrl":format!("{base}/contacts/exports/{ID}?connection={CONNECTION}&hash={HASH}"),"requiresOriginalBearer":true});
@@ -133,7 +133,7 @@ async fn token_provider_refreshes_rpc_and_private_requests_and_closes() {
     let events=seen.lock().unwrap().clone();
     assert!(events.iter().any(|e|e.contains("custom-client") && e.contains("\"version\":\"9\"")));
     let b=format!("authorization: bearer mcp_{}", "b".repeat(43));
-    assert!(events.iter().any(|e|e.contains("\"method\":\"ping\"") && e.contains(&b)));
+    assert!(events.iter().any(|e|e.contains("\"method\":\"tools/list\"") && e.contains(&b)));
     assert!(events.iter().any(|e|e.contains("/contacts/exports/") && e.contains(&b)));
     client.close().await.unwrap();
     assert!(client.client.is_closed());
