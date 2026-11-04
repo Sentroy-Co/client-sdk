@@ -39,6 +39,9 @@ async fn mock() -> (String, Arc<AtomicUsize>, tokio::task::JoinHandle<()>) {
                 let mut parts=line.split_whitespace(); let method=parts.next().unwrap_or(""); let path=parts.next().unwrap_or("");
                 let (status,content_type,body)=if path.starts_with("/mcp/acme/") {
                     counter.fetch_add(1,Ordering::SeqCst);
+                    let bearer = format!("authorization: bearer mcp_{}", "a".repeat(43));
+                    if !header.to_ascii_lowercase().contains(&bearer) { return; }
+                    if path.contains("ffffffffffffffffffffffff") { return; }
                     if path.contains("/contacts/imports/") {
                         ("200 OK","application/json",json!({"uploadId":ID,"state":"ready","count":1,"fileHash":HASH,"expiresAt":EXPIRY}).to_string())
                     } else if path.contains("/uploads/") {
@@ -95,5 +98,12 @@ async fn private_transfers_bind_targets_and_validate_contents() {
         "contentType":"application/octet-stream","uploadUrl":format!("{base}/uploads/{ID}?connection={CONNECTION}")});
     assert_eq!(storage.upload_storage_file(&upload,b"abc",None).await.unwrap()["state"],"ready");
     assert_eq!(count.load(Ordering::SeqCst),5);
+    let mut too_small=attachment.clone(); too_small["maxBytes"]=json!(2);
+    assert!(mail.download_mail_attachment(&too_small,None).await.is_err());
+    let mut disconnected=import.clone();
+    disconnected["uploadUrl"]=json!(format!("{base}/contacts/imports/{ID}?connection=ffffffffffffffffffffffff"));
+    let error=mail.upload_mail_contacts_import(&disconnected,b"abc",None).await.unwrap_err();
+    assert!(error.to_string().contains("mcp_upload_outcome_unknown"));
+    assert_eq!(count.load(Ordering::SeqCst),7);
     task.abort();
 }
