@@ -64,8 +64,9 @@ async fn multipart_upload_and_binary_download() {
         is_public: Some(false), compress_video: true, transcode_video: true, tags: Some(vec!["a".into(), "b".into()]), ..Default::default()
     }).await.unwrap();
     let req = rx.recv().unwrap();
+    assert!(req.to_lowercase().contains("content-type: video/mp4"));
     assert!(req.starts_with("POST /api/storage/companies/company/buckets/my%20bucket/media "));
-    for text in ["filename=\"movie.mp4\"", "Content-Type: video/mp4", "name=\"public\"", "false", "name=\"compressVideo\"", "name=\"transcodeVideo\"", "a,b", "abc"] { assert!(req.contains(text), "missing {text}"); }
+    for text in ["filename=\"movie.mp4\"", "name=\"public\"", "false", "name=\"compressVideo\"", "name=\"transcodeVideo\"", "a,b", "abc"] { assert!(req.contains(text), "missing {text}"); }
     let (base, rx) = server(vec![0, 255, 42], "application/octet-stream");
     let client = Sentroy::new(base, "company", "token").unwrap();
     assert_eq!(client.media.download("b", "m", Some(500)).await.unwrap(), vec![0, 255, 42]);
