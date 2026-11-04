@@ -1,8 +1,8 @@
-use std::{sync::Arc, time::Duration};
+use std::{sync::{Arc, atomic::{AtomicU64, Ordering}}, time::Duration};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 use crate::{Error, Result, http::{Http, segment}};
-use super::{LoginOutcome, Session};
+use super::{LoginOutcome, Session, SignInRequest, TypedLoginOutcome, LoginResponse, PasskeyBegin};
 
 /// Portable identity client. No browser, local storage, timers or WebAuthn runtime is supplied.
 /// Clones share one in-memory session and serialize refreshes to avoid rotating a token twice.
@@ -12,7 +12,14 @@ pub struct SentroyAuth {
     pub(crate) base: String,
     pub(crate) slug: String,
     slug_encoded: String,
-    session: Arc<Mutex<Option<Session>>>,
+    state: Arc<Mutex<State>>,
+    epoch: Arc<AtomicU64>,
+}
+#[derive(Default)]
+struct State {
+    session: Option<Session>,
+    // Only a caller that observed this exact generation before waiting may reuse it.
+    last_refresh: Option<(u64, Value)>,
 }
 impl std::fmt::Debug for SentroyAuth {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -41,14 +48,14 @@ impl SentroyAuth {
             return Err(Error::InvalidInput("invalid auth base URL".into()));
         }
         let http = Http::new(base.clone(), api_key, timeout)?;
-        Ok(Self { http, base, slug, slug_encoded, session: Arc::new(Mutex::new(None)) })
+        Ok(Self { http, base, slug, slug_encoded, state: Arc::new(Mutex::new(State::default())), epoch: Arc::new(AtomicU64::new(0)) })
     }
     pub(crate) fn path(&self, p: &str) -> String { format!("/api/v1/auth/{}{}", self.slug_encoded, p) }
     async fn post(&self, p: &str, body: Value) -> Result<Value> {
         self.http.post(&self.path(p), body).await.map_err(auth_error)
     }
     async fn bearer(&self) -> Result<Http> {
-        let token = self.session.lock().await.as_ref().map(|s| s.access_token.clone())
+        let token = self.state.lock().await.session.as_ref().map(|s| s.access_token.clone())
             .ok_or_else(|| Error::InvalidInput("Not signed in — access token missing".into()))?;
         self.http.with_token(Some(token))
     }
@@ -67,9 +74,24 @@ impl SentroyAuth {
         self.set_session(session).await;
         Ok(())
     }
-    pub async fn session(&self) -> Option<Session> { self.session.lock().await.clone() }
-    pub async fn set_session(&self, session: Session) { *self.session.lock().await = Some(session); }
-    pub async fn clear_session(&self) { *self.session.lock().await = None; }
+    pub async fn session(&self) -> Option<Session> { self.state.lock().await.session.clone() }
+    pub async fn set_session(&self, session: Session) {
+        let mut s = self.state.lock().await;
+        s.session = Some(session); s.last_refresh = None;
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+    }
+    pub async fn clear_session(&self) {
+        let mut s = self.state.lock().await;
+        s.session = None; s.last_refresh = None;
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+    }
+    async fn clear_if_epoch(&self, epoch: u64) {
+        let mut s = self.state.lock().await;
+        if self.epoch.load(Ordering::SeqCst) == epoch {
+            s.session = None; s.last_refresh = None;
+            self.epoch.fetch_add(1, Ordering::SeqCst);
+        }
+    }
     pub async fn sign_up(&self, input: Value) -> Result<Value> {
         let v = self.post("/signup", input).await?;
         if v.get("accessToken").and_then(Value::as_str).is_some() && v.get("refreshToken").and_then(Value::as_str).is_some() { self.persist_login(&v).await?; }
@@ -80,23 +102,63 @@ impl SentroyAuth {
         if v.get("mfaRequired") == Some(&Value::Bool(true)) { Ok(LoginOutcome::Mfa(v)) }
         else { self.persist_login(&v).await?; Ok(LoginOutcome::Tokens(v)) }
     }
+    /// Typed login preserving additional server fields in the response.
+    pub async fn sign_in_typed(&self, input: &SignInRequest) -> Result<TypedLoginOutcome> {
+        match self.sign_in(serde_json::to_value(input)?).await? {
+            LoginOutcome::Tokens(v) => Ok(TypedLoginOutcome::Tokens(serde_json::from_value(v)?)),
+            LoginOutcome::Mfa(v) => Ok(TypedLoginOutcome::Mfa(serde_json::from_value(v)?)),
+        }
+    }
+    pub async fn verify_mfa_typed(&self, input: Value) -> Result<LoginResponse> {
+        Ok(serde_json::from_value(self.verify_mfa(input).await?)?)
+    }
+    pub async fn begin_passkey_registration_typed(&self) -> Result<PasskeyBegin> {
+        Ok(serde_json::from_value(self.begin_passkey_registration().await?)?)
+    }
+    pub async fn begin_passkey_authentication_typed(&self, email: Option<&str>) -> Result<PasskeyBegin> {
+        Ok(serde_json::from_value(self.begin_passkey_authentication(email).await?)?)
+    }
     pub async fn verify_mfa(&self, input: Value) -> Result<Value> {
         let v = self.post("/login/mfa/verify", input).await?; self.persist_login(&v).await?; Ok(v)
     }
-    /// One refresh request, with no replay on transport or server failure.
-    /// An indeterminate failure requires application-specific reconciliation.
+    /// Concurrent callers that observe the same session share one rotation.
+    /// Once a rotation is sent, cancellation, malformed responses, and failures
+    /// discard the old session: its refresh token may have already been consumed.
     pub async fn refresh(&self) -> Result<Value> {
-        let mut guard = self.session.lock().await;
-        let old = guard.as_ref().ok_or_else(|| Error::InvalidInput("Not signed in".into()))?;
-        let v = self.post("/refresh", json!({"refreshToken": old.refresh_token})).await?;
-        let access = v.get("accessToken").and_then(Value::as_str).ok_or_else(|| Error::InvalidResponse("missing accessToken".into()))?;
-        let refresh = v.get("refreshToken").and_then(Value::as_str).ok_or_else(|| Error::InvalidResponse("missing refreshToken".into()))?;
-        let s = guard.as_mut().expect("session held during refresh");
-        s.access_token = access.to_owned(); s.refresh_token = refresh.to_owned();
-        Ok(v)
+        let observed = self.epoch.load(Ordering::SeqCst);
+        let mut state = self.state.lock().await;
+        if self.epoch.load(Ordering::SeqCst) != observed {
+            return state.last_refresh.as_ref().filter(|(e, _)| *e == observed)
+                .map(|(_, v)| v.clone())
+                .ok_or_else(|| Error::InvalidInput("session changed during refresh".into()));
+        }
+        // Remove before the await, so cancellation cannot permit a blind replay.
+        let mut session = state.session.take().ok_or_else(|| Error::InvalidInput("Not signed in or refresh outcome unknown".into()))?;
+        state.last_refresh = None;
+        let result = self.post("/refresh", json!({"refreshToken": session.refresh_token})).await;
+        let result = result.and_then(|v| {
+            let access = v.get("accessToken").and_then(Value::as_str).ok_or_else(|| Error::InvalidResponse("missing accessToken".into()))?;
+            let refresh = v.get("refreshToken").and_then(Value::as_str).ok_or_else(|| Error::InvalidResponse("missing refreshToken".into()))?;
+            session.access_token = access.to_owned(); session.refresh_token = refresh.to_owned();
+            Ok(v)
+        });
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        match result {
+            Ok(v) => {
+                state.session = Some(session);
+                state.last_refresh = Some((observed, v.clone()));
+                Ok(v)
+            }
+            Err(e) => Err(e),
+        }
     }
     pub async fn sign_out(&self) {
-        let old = self.session.lock().await.take();
+        let old = {
+            let mut state = self.state.lock().await;
+            let old = state.session.take(); state.last_refresh = None;
+            self.epoch.fetch_add(1, Ordering::SeqCst);
+            old
+        };
         if let Some(s) = old { let _ = self.post("/logout", json!({"refreshToken": s.refresh_token})).await; }
     }
     pub async fn send_password_reset(&self, email: &str) -> Result<Value> { self.post("/password-reset/request", json!({"email":email})).await }
@@ -125,22 +187,30 @@ impl SentroyAuth {
         let token = self.session.lock().await.as_ref().map(|s| s.access_token.clone())
             .ok_or_else(|| Error::InvalidInput("Not signed in — access token missing".into()))?;
         let v = self.http.with_token(Some(token.clone()))?.get(&self.path("/me"), &[]).await.map_err(auth_error)?;
-        let mut guard = self.session.lock().await;
-        if let Some(s) = guard.as_mut() { if s.access_token == token { s.user = v.clone(); } }
+        let mut guard = self.state.lock().await;
+        if let Some(s) = guard.session.as_mut() { if s.access_token == token { s.user = v.clone(); } }
         Ok(v)
     }
     pub async fn list_sessions(&self) -> Result<Value> { self.get_auth("/me/sessions").await }
     pub async fn revoke_session(&self, id: &str) -> Result<()> { self.delete_auth(&format!("/me/sessions/{}", segment(id)?)).await }
     pub async fn change_password(&self, input: Value) -> Result<Value> {
-        let v = self.post_auth("/me/password", input).await?; self.clear_session().await; Ok(v)
+        let (token, epoch) = {
+            let state = self.state.lock().await;
+            let token = state.session.as_ref().ok_or_else(|| Error::InvalidInput("Not signed in".into()))?.access_token.clone();
+            (token, self.epoch.load(Ordering::SeqCst))
+        };
+        let v = self.http.with_token(Some(token))?.post(&self.path("/me/password"), input).await.map_err(auth_error)?;
+        self.clear_if_epoch(epoch).await; Ok(v)
     }
     pub async fn request_email_change(&self, input: Value) -> Result<Value> { self.post_auth("/me/email/change-request", input).await }
     pub async fn confirm_email_change(&self, token: &str) -> Result<Value> {
-        let v = self.post("/me/email/change-confirm", json!({"token": token})).await?; self.clear_session().await; Ok(v)
+        let epoch = self.epoch.load(Ordering::SeqCst);
+        let v = self.post("/me/email/change-confirm", json!({"token": token})).await?; self.clear_if_epoch(epoch).await; Ok(v)
     }
     pub async fn request_account_deletion(&self, password: &str) -> Result<Value> { self.post_auth("/me/account/delete-request", json!({"currentPassword":password})).await }
     pub async fn confirm_account_deletion(&self, token: &str) -> Result<Value> {
-        let v = self.post("/me/account/delete-confirm", json!({"token":token})).await?; self.clear_session().await; Ok(v)
+        let epoch = self.epoch.load(Ordering::SeqCst);
+        let v = self.post("/me/account/delete-confirm", json!({"token":token})).await?; self.clear_if_epoch(epoch).await; Ok(v)
     }
     pub async fn activity(&self) -> Result<Value> { self.get_auth("/me/activity").await }
     pub async fn mfa_status(&self) -> Result<Value> { self.get_auth("/me/mfa").await }
