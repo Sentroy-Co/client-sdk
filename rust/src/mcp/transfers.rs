@@ -109,7 +109,8 @@ async fn bounded(mut response: reqwest::Response, cap: usize, expected: Option<u
 impl McpConnection {
     async fn get_file(&self, u: Url, cap: usize, expected: Option<usize>, duration: Duration) -> Result<Vec<u8>, Error> {
         tokio::time::timeout(duration, async {
-            let r = self.file_client.get(u).bearer_auth(&self.token).send().await.map_err(|_| err("mcp_download_failed"))?;
+            let token = self.provider.resolve().await?;
+            let r = self.file_client.get(u).bearer_auth(token).send().await.map_err(|_| err("mcp_download_failed"))?;
             if r.status() != 200 { return Err(err("mcp_download_failed")); }
             bounded(r,cap,expected).await
         }).await.map_err(|_| err("mcp_download_aborted"))?
@@ -118,7 +119,8 @@ impl McpConnection {
         // Once send starts, timeout, connection loss, or invalid response cannot
         // determine whether the server accepted the bytes. Never replay it.
         tokio::time::timeout(duration, async {
-            let r = self.file_client.put(u).bearer_auth(&self.token)
+            let token = self.provider.resolve().await?;
+            let r = self.file_client.put(u).bearer_auth(token)
                 .header(reqwest::header::CONTENT_TYPE,"application/octet-stream").body(body.to_vec())
                 .send().await.map_err(|_| err("mcp_upload_outcome_unknown"))?;
             let status = r.status().as_u16();
