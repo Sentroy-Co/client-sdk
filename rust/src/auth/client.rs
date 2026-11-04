@@ -2,7 +2,7 @@ use std::{sync::{Arc, atomic::{AtomicU64, Ordering}}, time::Duration};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 use crate::{Error, Result, http::{Http, segment}};
-use super::{LoginOutcome, Session, SignInRequest, TypedLoginOutcome, LoginResponse, PasskeyBegin};
+use super::{LoginOutcome, Session, SignInRequest, TypedLoginOutcome, LoginResponse, PasskeyBegin, AuthUser, SessionSummary, ActivityEntry, MfaStatus, MfaEnrollment, MfaEnrollmentVerification, PasskeySummary};
 
 /// Portable identity client. No browser, local storage, timers or WebAuthn runtime is supplied.
 /// Clones share one in-memory session and serialize refreshes to avoid rotating a token twice.
@@ -191,6 +191,13 @@ impl SentroyAuth {
         if let Some(s) = guard.session.as_mut() { if s.access_token == token { s.user = v.clone(); } }
         Ok(v)
     }
+    pub async fn current_user_typed(&self) -> Result<AuthUser> { Ok(serde_json::from_value(self.current_user().await?)?) }
+    pub async fn list_sessions_typed(&self) -> Result<Vec<SessionSummary>> { Ok(serde_json::from_value(self.list_sessions().await?)?) }
+    pub async fn activity_typed(&self) -> Result<Vec<ActivityEntry>> { Ok(serde_json::from_value(self.activity().await?)?) }
+    pub async fn mfa_status_typed(&self) -> Result<MfaStatus> { Ok(serde_json::from_value(self.mfa_status().await?)?) }
+    pub async fn enroll_totp_typed(&self) -> Result<MfaEnrollment> { Ok(serde_json::from_value(self.enroll_totp().await?)?) }
+    pub async fn verify_totp_enrollment_typed(&self, code: &str) -> Result<MfaEnrollmentVerification> { Ok(serde_json::from_value(self.verify_totp_enrollment(code).await?)?) }
+    pub async fn list_passkeys_typed(&self) -> Result<Vec<PasskeySummary>> { Ok(serde_json::from_value(self.list_passkeys().await?)?) }
     pub async fn list_sessions(&self) -> Result<Value> { self.get_auth("/me/sessions").await }
     pub async fn revoke_session(&self, id: &str) -> Result<()> { self.delete_auth(&format!("/me/sessions/{}", segment(id)?)).await }
     pub async fn change_password(&self, input: Value) -> Result<Value> {
