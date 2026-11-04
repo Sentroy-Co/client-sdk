@@ -93,3 +93,69 @@ impl std::fmt::Debug for PasskeyBegin {
         f.debug_struct("PasskeyBegin").field("options", &self.options).field("challenge_token", &"[REDACTED]").finish()
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionSummary {
+    pub id: String,
+    pub refresh_token_prefix: String,
+    pub user_agent: Option<String>,
+    pub ip: Option<String>,
+    pub expires_at: String,
+    pub created_at: String,
+    #[serde(flatten)] pub extra: serde_json::Map<String, Value>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivityEntry {
+    pub id: String,
+    pub action: String,
+    pub ip_address: Option<String>,
+    pub created_at: String,
+    pub details: Option<Value>,
+    #[serde(flatten)] pub extra: serde_json::Map<String, Value>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MfaStatus {
+    pub enrolled: bool,
+    pub factor_type: Option<String>,
+    pub verified_at: Option<String>,
+    pub recovery_codes_remaining: Option<u64>,
+    #[serde(flatten)] pub extra: serde_json::Map<String, Value>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MfaEnrollment {
+    pub secret: String,
+    pub otpauth_uri: String,
+    #[serde(flatten)] pub extra: serde_json::Map<String, Value>,
+}
+impl std::fmt::Debug for MfaEnrollment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("MfaEnrollment([REDACTED])")
+    }
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MfaEnrollmentVerification {
+    pub enrolled: bool,
+    pub recovery_codes: Vec<String>,
+    #[serde(flatten)] pub extra: serde_json::Map<String, Value>,
+}
+impl std::fmt::Debug for MfaEnrollmentVerification {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MfaEnrollmentVerification").field("enrolled", &self.enrolled).field("recovery_codes", &"[REDACTED]").finish()
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PasskeySummary {
+    pub id: String,
+    pub credential_id_prefix: String,
+    pub device_name: Option<String>,
+    pub transports: Vec<String>,
+    pub last_used_at: Option<String>,
+    pub created_at: String,
+    #[serde(flatten)] pub extra: serde_json::Map<String, Value>,
+}
