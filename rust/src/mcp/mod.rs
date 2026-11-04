@@ -111,7 +111,7 @@ fn valid_token(token: &str) -> bool {
 
 /// Connected official protocol client. Use `client.peer()` to call MCP methods.
 pub struct McpConnection {
-    pub resource: String,
+    resource: String,
     pub client: RunningService<RoleClient, ClientConfig>,
     app: McpApp,
     provider: McpTokenProvider,
@@ -203,7 +203,7 @@ pub async fn connect_sentroy_mcp_with_provider(
     );
     let info = info.unwrap_or_else(|| McpClientInfo {
         name: "sentroy-client-sdk".into(),
-        version: "1".into(),
+        version: env!("CARGO_PKG_VERSION").into(),
     });
     let mut client_info = ClientConfig::default();
     client_info.client_info = Implementation::new(info.name, info.version);
@@ -220,6 +220,10 @@ pub async fn connect_sentroy_mcp_with_provider(
     })
 }
 impl McpConnection {
+    /// The immutable protected resource bound when this connection was opened.
+    pub fn resource(&self) -> &str {
+        &self.resource
+    }
     /// Close the official MCP service and its transport.
     pub async fn close(&mut self) -> Result<(), Error> {
         self.client

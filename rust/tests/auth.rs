@@ -280,11 +280,10 @@ async fn cancelled_refresh_does_not_replay_token() {
     server.await.unwrap();
 }
 
-
 #[tokio::test]
 async fn fragment_uses_user_bearer_and_preserves_session_on_failure() {
-    use tokio::io::AsyncWriteExt;
     use sentroy_client_sdk::auth::PasswordResetConfirmRequest;
+    use tokio::io::AsyncWriteExt;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let server = tokio::spawn(async move {
@@ -307,17 +306,40 @@ async fn fragment_uses_user_bearer_and_preserves_session_on_failure() {
         assert!(head.contains("authorization: bearer project-api-key\r\n"));
         reply(&mut reset, r#"{"user":{"id":"u1","authProjectId":"p1","email":"a@example.com","emailVerified":true,"displayName":null,"image":null,"metadata":{},"lastLoginAt":null,"createdAt":"now","updatedAt":"now"}}"#).await;
     });
-    let client = SentroyAuth::new(base, "demo", Some("project-api-key".into()), Duration::from_secs(2)).unwrap();
+    let client = SentroyAuth::new(
+        base,
+        "demo",
+        Some("project-api-key".into()),
+        Duration::from_secs(2),
+    )
+    .unwrap();
     client.set_session(session_with("original")).await;
-    assert!(client.consume_redirect_fragment("#access_token=only").await.unwrap().is_none());
+    assert!(client
+        .consume_redirect_fragment("#access_token=only")
+        .await
+        .unwrap()
+        .is_none());
     assert_eq!(client.session().await.unwrap().user["id"], "original");
-    assert!(client.consume_redirect_fragment("#access_token=a&access_token=b&refresh_token=c").await.is_err());
-    let user = client.consume_redirect_fragment("#access_token=access-one&refresh_token=refresh-one").await.unwrap().unwrap();
+    assert!(client
+        .consume_redirect_fragment("#access_token=a&access_token=b&refresh_token=c")
+        .await
+        .is_err());
+    let user = client
+        .consume_redirect_fragment("#access_token=access-one&refresh_token=refresh-one")
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(user["id"], "user-one");
     assert_eq!(client.session().await.unwrap().refresh_token, "refresh-one");
-    assert!(client.consume_redirect_fragment("#access_token=bad-token&refresh_token=bad-refresh").await.is_err());
+    assert!(client
+        .consume_redirect_fragment("#access_token=bad-token&refresh_token=bad-refresh")
+        .await
+        .is_err());
     assert_eq!(client.session().await.unwrap().user["id"], "user-one");
-    let input = PasswordResetConfirmRequest { token: "secret-token".into(), new_password: "secret-password".into() };
+    let input = PasswordResetConfirmRequest {
+        token: "secret-token".into(),
+        new_password: "secret-password".into(),
+    };
     assert!(!format!("{input:?}").contains("secret"));
     let result = client.confirm_password_reset_typed(&input).await.unwrap();
     assert_eq!(result.user.id, "u1");
@@ -330,11 +352,17 @@ async fn email_verification_updates_only_the_matching_session_user() {
     let base = format!("http://{}", listener.local_addr().unwrap());
     let server = tokio::spawn(async move {
         let (mut first, _) = listener.accept().await.unwrap();
-        assert!(request_head(&mut first).await.starts_with("POST /api/v1/auth/demo/verify-email "));
+        assert!(request_head(&mut first)
+            .await
+            .starts_with("POST /api/v1/auth/demo/verify-email "));
         reply(&mut first, r#"{"user":{"id":"old","emailVerified":true}}"#).await;
         let (mut other, _) = listener.accept().await.unwrap();
         request_head(&mut other).await;
-        reply(&mut other, r#"{"user":{"id":"other","emailVerified":false}}"#).await;
+        reply(
+            &mut other,
+            r#"{"user":{"id":"other","emailVerified":false}}"#,
+        )
+        .await;
     });
     let client = SentroyAuth::new(base, "demo", None, Duration::from_secs(2)).unwrap();
     client.set_session(session_with("old")).await;

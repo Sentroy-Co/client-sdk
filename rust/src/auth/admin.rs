@@ -1,4 +1,7 @@
-use super::{client::auth_error, AuthTokensResponse, LoginOutcome, SentroyAuth, SignupRequest, SignupResponse, SignInRequest, TypedLoginOutcome, MfaVerifyRequest, LoginResponse};
+use super::{
+    client::auth_error, AuthTokensResponse, LoginOutcome, LoginResponse, MfaVerifyRequest,
+    SentroyAuth, SignInRequest, SignupRequest, SignupResponse, TypedLoginOutcome,
+};
 use crate::{Error, Result};
 use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use serde_json::{json, Value};
@@ -58,11 +61,15 @@ impl SentroyAuthAdmin {
         self.post("/signup", input).await
     }
     pub async fn create_user_typed(&self, input: &SignupRequest) -> Result<SignupResponse> {
-        Ok(serde_json::from_value(self.create_user(serde_json::to_value(input)?).await?)?)
+        Ok(serde_json::from_value(
+            self.create_user(serde_json::to_value(input)?).await?,
+        )?)
     }
     pub async fn sign_in_typed(&self, input: &SignInRequest) -> Result<TypedLoginOutcome> {
         match self.sign_in(serde_json::to_value(input)?).await? {
-            LoginOutcome::Tokens(v) => Ok(TypedLoginOutcome::Tokens(Box::new(serde_json::from_value(v)?))),
+            LoginOutcome::Tokens(v) => Ok(TypedLoginOutcome::Tokens(Box::new(
+                serde_json::from_value(v)?,
+            ))),
             LoginOutcome::Mfa(v) => Ok(TypedLoginOutcome::Mfa(serde_json::from_value(v)?)),
         }
     }
@@ -78,7 +85,9 @@ impl SentroyAuthAdmin {
         self.post("/login/mfa/verify", input).await
     }
     pub async fn verify_mfa_typed(&self, input: &MfaVerifyRequest) -> Result<LoginResponse> {
-        Ok(serde_json::from_value(self.verify_mfa(serde_json::to_value(input)?).await?)?)
+        Ok(serde_json::from_value(
+            self.verify_mfa(serde_json::to_value(input)?).await?,
+        )?)
     }
     pub async fn refresh_typed(&self, token: &str) -> Result<AuthTokensResponse> {
         Ok(serde_json::from_value(self.refresh(token).await?)?)

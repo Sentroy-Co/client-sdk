@@ -1,9 +1,9 @@
 use super::{
-    ActivityEntry, AuthUser, LoginOutcome, LoginResponse, MfaEnrollment, MfaEnrollmentVerification,
-    MfaStatus, PasskeyBegin, PasskeySummary, Session, SessionSummary, SignInRequest,
-    TypedLoginOutcome, AuthTokensResponse, SignupResponse, SignupRequest, MfaVerifyRequest,
-    PasswordResetConfirmRequest, MagicLinkRequest, AcceptInvitationRequest, ChangePasswordRequest,
-    ChangeEmailRequest, UserResponse,
+    AcceptInvitationRequest, ActivityEntry, AuthTokensResponse, AuthUser, ChangeEmailRequest,
+    ChangePasswordRequest, LoginOutcome, LoginResponse, MagicLinkRequest, MfaEnrollment,
+    MfaEnrollmentVerification, MfaStatus, MfaVerifyRequest, PasskeyBegin, PasskeySummary,
+    PasswordResetConfirmRequest, Session, SessionSummary, SignInRequest, SignupRequest,
+    SignupResponse, TypedLoginOutcome, UserResponse,
 };
 use crate::{
     http::{segment, Http},
@@ -182,7 +182,9 @@ impl SentroyAuth {
         Ok(v)
     }
     pub async fn sign_up_typed(&self, input: &SignupRequest) -> Result<SignupResponse> {
-        Ok(serde_json::from_value(self.sign_up(serde_json::to_value(input)?).await?)?)
+        Ok(serde_json::from_value(
+            self.sign_up(serde_json::to_value(input)?).await?,
+        )?)
     }
     pub async fn sign_in(&self, input: Value) -> Result<LoginOutcome> {
         let v = self.post("/login", input).await?;
@@ -196,12 +198,16 @@ impl SentroyAuth {
     /// Typed login preserving additional server fields in the response.
     pub async fn sign_in_typed(&self, input: &SignInRequest) -> Result<TypedLoginOutcome> {
         match self.sign_in(serde_json::to_value(input)?).await? {
-            LoginOutcome::Tokens(v) => Ok(TypedLoginOutcome::Tokens(Box::new(serde_json::from_value(v)?))),
+            LoginOutcome::Tokens(v) => Ok(TypedLoginOutcome::Tokens(Box::new(
+                serde_json::from_value(v)?,
+            ))),
             LoginOutcome::Mfa(v) => Ok(TypedLoginOutcome::Mfa(serde_json::from_value(v)?)),
         }
     }
     pub async fn verify_mfa_typed(&self, input: &MfaVerifyRequest) -> Result<LoginResponse> {
-        Ok(serde_json::from_value(self.verify_mfa(serde_json::to_value(input)?).await?)?)
+        Ok(serde_json::from_value(
+            self.verify_mfa(serde_json::to_value(input)?).await?,
+        )?)
     }
     pub async fn begin_passkey_registration_typed(&self) -> Result<PasskeyBegin> {
         Ok(serde_json::from_value(
@@ -290,20 +296,32 @@ impl SentroyAuth {
     pub async fn confirm_password_reset(&self, input: Value) -> Result<Value> {
         self.post("/password-reset/confirm", input).await
     }
-    pub async fn confirm_password_reset_typed(&self, input: &PasswordResetConfirmRequest) -> Result<UserResponse> {
-        Ok(serde_json::from_value(self.confirm_password_reset(serde_json::to_value(input)?).await?)?)
+    pub async fn confirm_password_reset_typed(
+        &self,
+        input: &PasswordResetConfirmRequest,
+    ) -> Result<UserResponse> {
+        Ok(serde_json::from_value(
+            self.confirm_password_reset(serde_json::to_value(input)?)
+                .await?,
+        )?)
     }
     pub async fn send_magic_link_typed(&self, input: &MagicLinkRequest) -> Result<Value> {
         self.send_magic_link(serde_json::to_value(input)?).await
     }
-    pub async fn accept_invitation_typed(&self, input: &AcceptInvitationRequest) -> Result<LoginResponse> {
-        Ok(serde_json::from_value(self.accept_invitation(serde_json::to_value(input)?).await?)?)
+    pub async fn accept_invitation_typed(
+        &self,
+        input: &AcceptInvitationRequest,
+    ) -> Result<LoginResponse> {
+        Ok(serde_json::from_value(
+            self.accept_invitation(serde_json::to_value(input)?).await?,
+        )?)
     }
     pub async fn change_password_typed(&self, input: &ChangePasswordRequest) -> Result<Value> {
         self.change_password(serde_json::to_value(input)?).await
     }
     pub async fn request_email_change_typed(&self, input: &ChangeEmailRequest) -> Result<Value> {
-        self.request_email_change(serde_json::to_value(input)?).await
+        self.request_email_change(serde_json::to_value(input)?)
+            .await
     }
     pub async fn verify_email(&self, token: &str) -> Result<Value> {
         let response = self.post("/verify-email", json!({"token":token})).await?;
@@ -390,7 +408,9 @@ impl SentroyAuth {
                 _ => continue,
             };
             if target.replace(value.into_owned()).is_some() {
-                return Err(Error::InvalidInput("duplicate token in redirect fragment".into()));
+                return Err(Error::InvalidInput(
+                    "duplicate token in redirect fragment".into(),
+                ));
             }
         }
         let (access_token, refresh_token) = match (access, refresh) {
@@ -398,16 +418,26 @@ impl SentroyAuth {
             _ => return Ok(None),
         };
         let observed = self.epoch.load(Ordering::SeqCst);
-        let user: Value = self.http.with_token(Some(access_token.clone()))?
-            .get(&self.path("/me"), &[]).await.map_err(auth_error)?;
+        let user: Value = self
+            .http
+            .with_token(Some(access_token.clone()))?
+            .get(&self.path("/me"), &[])
+            .await
+            .map_err(auth_error)?;
         if !user.get("id").is_some_and(Value::is_string) {
             return Err(Error::InvalidResponse("invalid user response".into()));
         }
         let mut state = self.state.lock().await;
         if self.epoch.load(Ordering::SeqCst) != observed {
-            return Err(Error::InvalidInput("session changed during redirect exchange".into()));
+            return Err(Error::InvalidInput(
+                "session changed during redirect exchange".into(),
+            ));
         }
-        state.session = Some(Session { access_token, refresh_token, user: user.clone() });
+        state.session = Some(Session {
+            access_token,
+            refresh_token,
+            user: user.clone(),
+        });
         state.last_refresh = None;
         self.epoch.fetch_add(1, Ordering::SeqCst);
         Ok(Some(user))

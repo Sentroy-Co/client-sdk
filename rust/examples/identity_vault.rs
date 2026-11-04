@@ -10,11 +10,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("SENTROY_AUTH_API_KEY").ok(),
         Duration::from_secs(30),
     )?;
-    let outcome = identity.sign_in_typed(&SignInRequest {
-        email: std::env::var("SENTROY_AUTH_EMAIL")?,
-        password: std::env::var("SENTROY_AUTH_PASSWORD")?,
-        remember_me: None,
-    }).await?;
+    let outcome = identity
+        .sign_in_typed(&SignInRequest {
+            email: std::env::var("SENTROY_AUTH_EMAIL")?,
+            password: std::env::var("SENTROY_AUTH_PASSWORD")?,
+            remember_me: None,
+        })
+        .await?;
     match outcome {
         TypedLoginOutcome::Tokens(_) => println!("Signed in"),
         TypedLoginOutcome::Mfa(_) => println!("MFA verification required"),

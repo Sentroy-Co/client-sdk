@@ -19,15 +19,8 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - name: Install Rust toolchain
         run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-      - name: Normalize and record formatting
-        run: |
-          cargo +stable fmt --all
-          python3 - <<'PY'
-          import json, pathlib, subprocess, base64
-          for p in subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines():
-              if p.startswith("rust/") and p.endswith(".rs"):
-                  print("SENTROY_RUST_FORMAT_B64 " + base64.b64encode(json.dumps({"path": p, "content": pathlib.Path(p).read_text()}, ensure_ascii=True).encode()).decode())
-          PY
+      - name: Check formatting
+        run: cargo +stable fmt --all -- --check
       - name: Check API presence parity
         run: python3 scripts/check_rust_parity.py
       - name: Check all targets
@@ -40,12 +33,9 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
         run: cargo +stable doc --workspace --all-features --no-deps --locked
-      - name: Require committed formatting
-        if: always()
-        run: git diff --exit-code -- rust
       - name: Check crate packaging
         if: ${{ !cancelled() }}
-        run: cargo +stable package --manifest-path rust/Cargo.toml --allow-dirty --locked
+        run: cargo +stable package --manifest-path rust/Cargo.toml --locked
   msrv:
     runs-on: ubuntu-22.04
     timeout-minutes: 25

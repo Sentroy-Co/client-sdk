@@ -8,7 +8,7 @@ sentroy-client-sdk = { git = "https://github.com/Sentroy-Co/client-sdk.git", rev
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
-For a local checkout use `sentroy-client-sdk = { path = "../client-sdk/rust" }`. The crate declares Rust 1.89 as its minimum; the minimum-version CI check is pending. Examples use Tokio. Run `cargo check --examples` and `cargo test` from this directory.
+For a local checkout use `sentroy-client-sdk = { path = "../client-sdk/rust" }`. Rust 1.89 or newer is required and checked in CI. Examples use Tokio. Run `cargo check --examples` and `cargo test` from this directory.
 
 ## Mail, storage and WhatsApp
 
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 See [examples/rest.rs](examples/rest.rs) for an executable version. `Sentroy::builder(slug)` configures the base URL, token and timeout; its default timeout is 30 seconds. A token may be omitted, but the native client does not manage a browser cookie session. The root client routes through `/api/{mail,storage,whatsapp}/companies/{slug}`. Request and response models are in `types::{mail,storage,whatsapp}`; optional fields use `Option`.
 
-Errors implement `std::error::Error`. `status_code()` and `body()` expose available API error details; response bodies can contain sensitive data and should not be logged blindly. For BCC send and draft operations the SDK uses a versioned endpoint and returns an error containing `compose_request_id()` on an uncertain outcome. Save that UUID and resolve or retry the same operation with the **same** ID; do not generate a fresh one after an unknown result. These requests do not follow redirects or retry automatically. Non-BCC multi-recipient sends are normalized into personalized recipient entries.
+Errors implement `std::error::Error`. `status_code()` and `body()` expose available API error details; response bodies can contain sensitive data and should not be logged blindly. For BCC send and draft operations the SDK uses a versioned endpoint and returns an error containing `compose_request_id()` on an uncertain outcome. Save that UUID and resolve or retry the same operation with the **same** ID; do not generate a fresh one after an unknown result. These requests use a 4 KiB receipt limit and do not follow redirects or retry automatically. Other JSON API responses are capped at 16 MiB. Non-BCC multi-recipient sends are normalized into personalized recipient entries.
 
 ## Identity and Vault
 
@@ -41,7 +41,7 @@ Identity and Vault are separate clients with separate credentials. [examples/ide
 
 ## MCP
 
-[examples/mcp.rs](examples/mcp.rs) connects with an existing `mcp_` or `mcp_at_` token, exposes the official `rmcp` client, and closes the connection. MCP credentials are distinct from company `stk_`, Vault `stk_env_`, and Identity credentials. The SDK does not obtain consent, acquire or store tokens, or initiate tool calls on connection. Follow server approval requirements for writes.
+[examples/mcp.rs](examples/mcp.rs) connects with an existing `mcp_` or `mcp_at_` token, exposes the official `rmcp` client, and closes the connection. Protocol model types are re-exported under `mcp::protocol`; `resource()` reports the immutable protected resource. MCP credentials are distinct from company `stk_`, Vault `stk_env_`, and Identity credentials. The SDK does not obtain consent, acquire or store tokens, or initiate tool calls on connection. Follow server approval requirements for writes.
 
 The protocol transport uses official `rmcp`: its SSE event limit is 1 MiB, but other protocol response buffering and errors follow the upstream client and are not covered by the private-file limits below. Treat server-provided content and error text as untrusted and potentially sensitive. Automatic redirects, reconnect retries, and session reinitialization are disabled.
 
