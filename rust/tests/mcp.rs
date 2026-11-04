@@ -45,7 +45,17 @@ async fn mock() -> (String, Arc<AtomicUsize>, Arc<Mutex<Vec<String>>>, tokio::ta
                     let b = format!("authorization: bearer mcp_{}", "b".repeat(43));
                     if !header.to_ascii_lowercase().contains(&a) && !header.to_ascii_lowercase().contains(&b) { return; }
                     if path.contains("ffffffffffffffffffffffff") { return; }
-                    if path.contains("/contacts/imports/") {
+                    if path.contains("111111111111111111111111") {
+                        ("302 Found","text/plain",String::new())
+                    } else if path.contains("222222222222222222222222") {
+                        ("503 Service Unavailable","text/plain","unavailable".to_owned())
+                    } else if path.contains("333333333333333333333333") {
+                        ("200 OK","application/json","{".to_owned())
+                    } else if path.contains("444444444444444444444444") {
+                        ("200 OK","application/json","x".repeat(4097))
+                    } else if path.contains("555555555555555555555555") {
+                        ("200 OK","application/octet-stream","xyz".to_owned())
+                    } else if path.contains("/contacts/imports/") {
                         ("200 OK","application/json",json!({"uploadId":ID,"state":"ready","count":1,"fileHash":HASH,"expiresAt":EXPIRY}).to_string())
                     } else if path.contains("/uploads/") {
                         ("200 OK","application/json",json!({"uploadId":ID,"name":"test.txt","mimeType":"text/plain","bytes":3,"sha256":HASH,"expiresAt":EXPIRY,
@@ -59,7 +69,7 @@ async fn mock() -> (String, Arc<AtomicUsize>, Arc<Mutex<Vec<String>>>, tokio::ta
                         ("200 OK","application/json",json!({"jsonrpc":"2.0","id":message["id"],"result":{"tools":[]}}).to_string())
                     } else {("202 Accepted","application/json",String::new())}
                 } else { ("405 Method Not Allowed","text/plain",String::new()) };
-                let response=format!("HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len());
+                let response=format!("HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nLocation: /mcp/acme/redirect-capture\r\nConnection: close\r\n\r\n{body}",body.len());
                 let _=socket.write_all(response.as_bytes()).await;
             });
         }
@@ -152,5 +162,86 @@ async fn invalid_provider_fails_before_network_io() {
     let result=connect_sentroy_mcp_with_provider(&options(McpApp::Mail,&origin),provider,None).await;
     assert!(result.is_err());
     assert!(seen.lock().unwrap().is_empty());
+    task.abort();
+}
+
+#[tokio::test]
+async fn references_are_rejected_before_network_and_downloads_check_integrity() {
+    let (origin,count,_seen,task)=mock().await;
+    let token=format!("mcp_{}", "a".repeat(43));
+    let mail=connect_sentroy_mcp(&options(McpApp::Mail,&origin),&token).await.unwrap();
+    let base=format!("{origin}/mcp/acme");
+    let export=json!({"exportId":ID,"format":"csv","bytes":3,"fileHash":HASH,"expiresAt":EXPIRY,
+        "downloadUrl":format!("{base}/contacts/exports/{ID}?connection={CONNECTION}&hash={HASH}"),"requiresOriginalBearer":true});
+    let before=count.load(Ordering::SeqCst);
+    for bad in [
+        format!("http://localhost:1/mcp/acme/contacts/exports/{ID}?connection={CONNECTION}&hash={HASH}"),
+        format!("{base}/contacts/exports/123e4567-e89b-42d3-a456-426614174001?connection={CONNECTION}&hash={HASH}"),
+        format!("{base}/contacts/exports/{ID}?connection={CONNECTION}&hash={HASH}&extra=1"),
+        format!("{base}/contacts/exports/{ID}?connection={CONNECTION}&connection={CONNECTION}&hash={HASH}"),
+    ] {
+        let mut value=export.clone(); value["downloadUrl"]=json!(bad);
+        assert!(mail.download_mail_contacts_export(&value,None).await.is_err());
+    }
+    let mut expired=export.clone(); expired["expiresAt"]=json!("2000-01-01T00:00:00.000Z");
+    assert!(mail.download_mail_contacts_export(&expired,None).await.is_err());
+    let import=json!({"uploadId":ID,"bytes":3,"fileHash":HASH,"expiresAt":EXPIRY,
+        "uploadUrl":format!("{base}/contacts/imports/{ID}?connection={CONNECTION}"),"requiresOriginalBearer":true});
+    assert!(mail.upload_mail_contacts_import(&import,b"bad",None).await.is_err());
+    assert!(mail.upload_mail_contacts_import(&import,b"ab",None).await.is_err());
+
+    let encoded=URL_SAFE_NO_PAD.encode(serde_json::to_vec(&json!({"partId":"1.2","reference":{
+        "companyId":"c","mailbox":"a@example.com","folder":"INBOX","uidValidity":"1","uid":1}})).unwrap());
+    let attachment=json!({"downloadUrl":format!("{base}/attachments/{encoded}?connection={CONNECTION}&version={REV}"),
+        "requiresAuthorization":true,"method":"GET","attachment":{"partId":"1.2","encodedSize":3},"maxBytes":3});
+    let mut wrong_part=attachment.clone(); wrong_part["attachment"]["partId"]=json!("1.3");
+    assert!(mail.download_mail_attachment(&wrong_part,None).await.is_err());
+    let mut wrong_version=attachment.clone();
+    wrong_version["downloadUrl"]=json!(format!("{base}/attachments/{encoded}?connection={CONNECTION}&version=no"));
+    assert!(mail.download_mail_attachment(&wrong_version,None).await.is_err());
+    let invalid=URL_SAFE_NO_PAD.encode(serde_json::to_vec(&json!({"partId":"1.2","reference":{
+        "companyId":"c","mailbox":"a@example.com","folder":"__private","uidValidity":"1","uid":1}})).unwrap());
+    let mut hidden_folder=attachment.clone();
+    hidden_folder["downloadUrl"]=json!(format!("{base}/attachments/{invalid}?connection={CONNECTION}&version={REV}"));
+    assert!(mail.download_mail_attachment(&hidden_folder,None).await.is_err());
+    assert_eq!(count.load(Ordering::SeqCst),before);
+
+    let mut tampered=export.clone();
+    tampered["downloadUrl"]=json!(format!("{base}/contacts/exports/{ID}?connection=555555555555555555555555&hash={HASH}"));
+    assert!(mail.download_mail_contacts_export(&tampered,None).await.is_err());
+    let mut wrong_size=export.clone(); wrong_size["bytes"]=json!(2);
+    assert!(mail.download_mail_contacts_export(&wrong_size,None).await.is_err());
+    assert_eq!(count.load(Ordering::SeqCst),before+2);
+    task.abort();
+}
+
+#[tokio::test]
+async fn uploads_never_follow_redirects_or_replay_unknown_outcomes() {
+    let (origin,count,_seen,task)=mock().await;
+    let token=format!("mcp_{}", "a".repeat(43));
+    let mail=connect_sentroy_mcp(&options(McpApp::Mail,&origin),&token).await.unwrap();
+    let base=format!("{origin}/mcp/acme");
+    let import=json!({"uploadId":ID,"bytes":3,"fileHash":HASH,"expiresAt":EXPIRY,
+        "uploadUrl":format!("{base}/contacts/imports/{ID}?connection={CONNECTION}"),"requiresOriginalBearer":true});
+    let start=count.load(Ordering::SeqCst);
+    for (index, connection) in ["111111111111111111111111","ffffffffffffffffffffffff",
+        "222222222222222222222222","333333333333333333333333","444444444444444444444444"].iter().enumerate() {
+        let mut value=import.clone();
+        value["uploadUrl"]=json!(format!("{base}/contacts/imports/{ID}?connection={connection}"));
+        let error=mail.upload_mail_contacts_import(&value,b"abc",None).await.unwrap_err();
+        if index != 0 { assert!(error.to_string().contains("mcp_upload_outcome_unknown")); }
+        assert_eq!(count.load(Ordering::SeqCst), start+index+1);
+    }
+    let storage=connect_sentroy_mcp(&options(McpApp::Storage,&origin),&token).await.unwrap();
+    let upload=json!({"uploadId":ID,"name":"test.txt","mimeType":"text/plain","bytes":3,"sha256":HASH,"expiresAt":EXPIRY,
+        "bucket":{"id":CONNECTION,"slug":"bucket","revision":REV},"state":"waiting","revision":REV,"published":false,
+        "malwareScanned":false,"requiresHumanApproval":true,"requiresOriginalBearer":true,"method":"PUT",
+        "contentType":"application/octet-stream","uploadUrl":format!("{base}/uploads/{ID}?connection={CONNECTION}")});
+    for (index, connection) in ["222222222222222222222222","333333333333333333333333","444444444444444444444444"].iter().enumerate() {
+        let mut value=upload.clone(); value["uploadUrl"]=json!(format!("{base}/uploads/{ID}?connection={connection}"));
+        let error=storage.upload_storage_file(&value,b"abc",None).await.unwrap_err();
+        assert!(error.to_string().contains("mcp_upload_outcome_unknown"));
+        assert_eq!(count.load(Ordering::SeqCst),start+6+index);
+    }
     task.abort();
 }
