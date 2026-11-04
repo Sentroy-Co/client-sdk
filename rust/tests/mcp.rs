@@ -115,7 +115,7 @@ async fn private_transfers_bind_targets_and_validate_contents() {
 
 #[tokio::test]
 async fn token_provider_refreshes_rpc_and_private_requests_and_closes() {
-    let (origin,_count,seen,task)=mock().await;
+    let (origin,count,seen,task)=mock().await;
     let current=Arc::new(Mutex::new(format!("mcp_{}", "a".repeat(43))));
     let source=current.clone();
     let provider=McpTokenProvider::new(move || {
@@ -135,6 +135,11 @@ async fn token_provider_refreshes_rpc_and_private_requests_and_closes() {
     let b=format!("authorization: bearer mcp_{}", "b".repeat(43));
     assert!(events.iter().any(|e|e.contains("\"method\":\"tools/list\"") && e.contains(&b)));
     assert!(events.iter().any(|e|e.contains("/contacts/exports/") && e.contains(&b)));
+    *current.lock().unwrap()="stk_invalid".into();
+    let before=count.load(Ordering::SeqCst);
+    assert!(client.download_mail_contacts_export(&export,None).await.is_err());
+    assert_eq!(count.load(Ordering::SeqCst),before);
+    *current.lock().unwrap()=format!("mcp_{}", "b".repeat(43));
     client.close().await.unwrap();
     assert!(client.client.is_closed());
     task.abort();
