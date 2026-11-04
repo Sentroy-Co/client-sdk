@@ -186,7 +186,7 @@ impl SentroyAuth {
     pub async fn current_user(&self) -> Result<Value> {
         let token = self.session.lock().await.as_ref().map(|s| s.access_token.clone())
             .ok_or_else(|| Error::InvalidInput("Not signed in — access token missing".into()))?;
-        let v = self.http.with_token(Some(token.clone()))?.get(&self.path("/me"), &[]).await.map_err(auth_error)?;
+        let v: Value = self.http.with_token(Some(token.clone()))?.get(&self.path("/me"), &[]).await.map_err(auth_error)?;
         let mut guard = self.state.lock().await;
         if let Some(s) = guard.session.as_mut() { if s.access_token == token { s.user = v.clone(); } }
         Ok(v)
