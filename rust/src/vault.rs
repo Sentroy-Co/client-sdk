@@ -211,7 +211,7 @@ impl std::error::Error for WebhookError {}
 /// window (five minutes by default). A zero duration disables the window.
 pub fn verify_webhook(secret: &str, signature: &str, body: &[u8], max_age: Duration) -> Result<VaultWebhookPayload, WebhookError> {
     let hex = signature.strip_prefix("sha256=").or_else(|| signature.get(..7).filter(|p| p.eq_ignore_ascii_case("sha256=")).and_then(|_| signature.get(7..))).ok_or(WebhookError::InvalidSignature)?;
-    if hex.len() != 64 { return Err(WebhookError::InvalidSignature); }
+    if hex.len() != 64 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) { return Err(WebhookError::InvalidSignature); }
     let mut supplied = [0u8; 32];
     for (i, slot) in supplied.iter_mut().enumerate() {
         let part = hex.get(i * 2..i * 2 + 2).ok_or(WebhookError::InvalidSignature)?;
