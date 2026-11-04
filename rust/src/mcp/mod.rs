@@ -3,9 +3,10 @@
 //! MCP credentials are a separate namespace from API keys. A connection never
 //! acquires credentials, follows redirects, or replays requests on session expiry.
 
-use std::sync::Arc;
+use std::{future::Future, pin::Pin, sync::Arc};
 use rmcp::{
     service::{RoleClient, RunningService},
+    model::{ClientConfig, Implementation},
     transport::{
         common::client_side_sse::NeverRetry,
         streamable_http_client::{StreamableHttpClientTransport, StreamableHttpClientTransportConfig},
@@ -76,17 +77,54 @@ fn valid_token(token: &str) -> bool {
 /// Connected official protocol client. Use `client.peer()` to call MCP methods.
 pub struct McpConnection {
     pub resource: String,
-    pub client: RunningService<RoleClient, ()>,
+    pub client: RunningService<RoleClient, ClientConfig>,
     app: McpApp,
-    token: String,
+    provider: McpTokenProvider,
     file_client: reqwest::Client,
 }
 
-/// Connect with a personal MCP token or externally managed MCP OAuth access
-/// token. This performs the protocol handshake, but no tool calls.
+/// An asynchronous source of MCP credentials. Provider errors are sanitized.
+#[derive(Clone)]
+pub struct McpTokenProvider {
+    callback: Arc<dyn Fn() -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>> + Send + Sync>,
+}
+impl McpTokenProvider {
+    pub fn new<F, Fut>(callback: F) -> Self
+    where F: Fn() -> Fut + Send + Sync + 'static,
+          Fut: Future<Output = Result<String, Error>> + Send + 'static {
+        Self { callback: Arc::new(move || Box::pin(callback())) }
+    }
+    async fn resolve(&self) -> Result<String, Error> {
+        let token = (self.callback)().await.map_err(|_| invalid("mcp_token_unavailable"))?;
+        if !valid_token(&token) { return Err(invalid("invalid_mcp_token")); }
+        Ok(token)
+    }
+}
+impl std::fmt::Debug for McpTokenProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("McpTokenProvider([REDACTED])")
+    }
+}
+/// Client identity sent in the initialization request.
+#[derive(Clone, Debug)]
+pub struct McpClientInfo { pub name: String, pub version: String }
+
+/// Connect with a static personal or OAuth MCP access token.
 pub async fn connect_sentroy_mcp(options: &McpResourceOptions, token: &str) -> Result<McpConnection, Error> {
+    let token = token.to_owned();
+    let provider = McpTokenProvider::new(move || {
+        let token = token.clone();
+        async move { Ok(token) }
+    });
+    connect_sentroy_mcp_with_provider(options, provider, None).await
+}
+
+/// Connect using a source resolved before every MCP and private-file request.
+pub async fn connect_sentroy_mcp_with_provider(
+    options: &McpResourceOptions, provider: McpTokenProvider, info: Option<McpClientInfo>,
+) -> Result<McpConnection, Error> {
     let resource = sentroy_mcp_resource(options)?;
-    if !valid_token(token) { return Err(invalid("invalid_mcp_token")); }
+    provider.resolve().await?;
     let file_client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .retry(reqwest::retry::never())
@@ -96,15 +134,23 @@ pub async fn connect_sentroy_mcp(options: &McpResourceOptions, token: &str) -> R
         .retry(reqwest13::retry::never())
         .build().map_err(|_| invalid("mcp_connection_failed"))?;
     let mut config = StreamableHttpClientTransportConfig::with_uri(resource.clone())
-        .auth_header(token)
-        .reinit_on_expired_session(false)
-        .max_sse_event_size(1024 * 1024);
+        .reinit_on_expired_session(false).max_sse_event_size(1024 * 1024);
     config.retry_config = Arc::new(NeverRetry::default());
-    let transport = StreamableHttpClientTransport::with_client(client, config);
-    let service = ().serve(transport).await.map_err(|_| invalid("mcp_connection_failed"))?;
-    Ok(McpConnection { resource, client: service, app: options.app, token: token.to_owned(), file_client })
+    let transport = StreamableHttpClientTransport::with_client(
+        credential_client::CredentialClient { client, provider: provider.clone(), resource: Arc::from(resource.as_str()) }, config);
+    let info = info.unwrap_or_else(|| McpClientInfo { name: "sentroy-client-sdk".into(), version: "1".into() });
+    let mut client_info = ClientConfig::default();
+    client_info.client_info = Implementation::new(info.name, info.version);
+    let service = client_info.serve(transport).await.map_err(|_| invalid("mcp_connection_failed"))?;
+    Ok(McpConnection { resource, client: service, app: options.app, provider, file_client })
 }
-
+impl McpConnection {
+    /// Close the official MCP service and its transport.
+    pub async fn close(&mut self) -> Result<(), Error> {
+        self.client.close().await.map(|_| ()).map_err(|_| invalid("mcp_close_failed"))
+    }
+}
+mod credential_client;
 mod transfers;
 pub use transfers::TransferOptions;
 mod file_info;
