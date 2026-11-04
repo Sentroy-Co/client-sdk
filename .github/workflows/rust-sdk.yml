@@ -16,8 +16,15 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - name: Install Rust toolchain
         run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-      - name: Check formatting
-        run: cargo +stable fmt --all -- --check
+      - name: Normalize and record formatting
+        run: |
+          cargo +stable fmt --all
+          python3 - <<'PY'
+          import json, pathlib, subprocess
+          for p in subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines():
+              if p.startswith("rust/") and p.endswith(".rs"):
+                  print("SENTROY_RUST_FORMAT " + json.dumps({"path": p, "content": pathlib.Path(p).read_text()}, ensure_ascii=True))
+          PY
       - name: Check all targets
         run: cargo +stable clippy --workspace --all-targets --all-features -- -D warnings
       - name: Test SDK and examples
@@ -26,5 +33,8 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
         run: cargo +stable doc --workspace --all-features --no-deps
+      - name: Require committed formatting
+        if: always()
+        run: git diff --exit-code -- rust
       - name: Check crate packaging
         run: cargo +stable package --manifest-path rust/Cargo.toml --allow-dirty

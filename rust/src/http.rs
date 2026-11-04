@@ -115,7 +115,9 @@ impl Http {
         Self::decode(self.request(Method::GET, path, query)?.send().await?, false).await
     }
     pub(crate) async fn post<T: DeserializeOwned>(&self, path: &str, body: Value) -> Result<T> {
-        Self::decode(self.request(Method::POST, path, &[])?.json(&body).send().await?, false).await
+        let request = self.request(Method::POST, path, &[])?;
+        let request = if body.is_null() { request } else { request.json(&body) };
+        Self::decode(request.send().await?, false).await
     }
     pub(crate) async fn put<T: DeserializeOwned>(&self, path: &str, body: Value) -> Result<T> {
         Self::decode(self.request(Method::PUT, path, &[])?.json(&body).send().await?, false).await
