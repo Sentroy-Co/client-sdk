@@ -99,3 +99,43 @@ pub async fn connect_sentroy_mcp(options: &McpResourceOptions, token: &str) -> R
 
 mod file_info;
 pub use file_info::{ContactImportFileInfo, StorageUploadFileInfo, sentroy_mcp_contact_import_file_info, sentroy_mcp_storage_upload_file_info};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn resource() -> McpResourceOptions {
+        McpResourceOptions { app: McpApp::Mail, company_slug: "example".into(), origin: None }
+    }
+    #[test]
+    fn resource_and_metadata_bind_slug_and_origin() {
+        let mut opts = resource();
+        assert_eq!(sentroy_mcp_resource(&opts).unwrap(), "https://mail.sentroy.com/mcp/example");
+        assert_eq!(sentroy_mcp_resource_metadata(&opts).unwrap(), "https://mail.sentroy.com/.well-known/oauth-protected-resource/mcp/example");
+        opts.origin = Some("http://localhost:8080".into());
+        assert_eq!(sentroy_mcp_resource(&opts).unwrap(), "http://localhost:8080/mcp/example");
+        for bad in ["http://example.com", "https://user:pass@example.com", "https://example.com/a", "https://example.com/?q=1", "https://example.com/#f"] {
+            opts.origin = Some(bad.into());
+            assert!(sentroy_mcp_resource(&opts).is_err());
+        }
+        opts.origin = None;
+        for bad in ["", "A", "../x", "a/b", "with space"] {
+            opts.company_slug = bad.into();
+            assert!(sentroy_mcp_resource(&opts).is_err());
+        }
+    }
+    #[test]
+    fn token_namespace_and_manifests() {
+        assert!(valid_token(&format!("mcp_{}", "a".repeat(43))));
+        assert!(valid_token(&format!("mcp_at_{}", "a".repeat(43))));
+        assert!(!valid_token(&format!("stk_{}", "a".repeat(43))));
+        assert!(!valid_token(&format!("mcp_{}", "a".repeat(42))));
+        let contact = sentroy_mcp_contact_import_file_info(b"abc", "csv").unwrap();
+        assert_eq!(contact.file_hash, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+        assert!(sentroy_mcp_contact_import_file_info(b"", "csv").is_err());
+        assert!(sentroy_mcp_contact_import_file_info(b"abc", "txt").is_err());
+        let file = sentroy_mcp_storage_upload_file_info(b"abc", "file.PDF", "application/pdf").unwrap();
+        assert_eq!(file.sha256, contact.file_hash);
+        assert!(sentroy_mcp_storage_upload_file_info(b"abc", "../file.pdf", "application/pdf").is_err());
+        assert!(sentroy_mcp_storage_upload_file_info(b"abc", "file.txt", "application/pdf").is_err());
+    }
+}
