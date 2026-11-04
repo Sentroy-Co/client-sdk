@@ -96,3 +96,6 @@ pub async fn connect_sentroy_mcp(options: &McpResourceOptions, token: &str) -> R
     let service = ().serve(transport).await.map_err(|_| invalid("mcp_connection_failed"))?;
     Ok(McpConnection { resource, client: service })
 }
+
+mod file_info;
+pub use file_info::{ContactImportFileInfo, StorageUploadFileInfo, sentroy_mcp_contact_import_file_info, sentroy_mcp_storage_upload_file_info};
