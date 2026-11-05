@@ -20,9 +20,10 @@
 | Python | [`sentroy-client-sdk`](https://pypi.org/project/sentroy-client-sdk/) | `pip install sentroy-client-sdk` |
 | PHP | [`sentroy-co/client-sdk`](https://packagist.org/packages/sentroy-co/client-sdk) | `composer require sentroy-co/client-sdk` |
 | Rust | [`sentroy-client-sdk`](rust/) | [Git or path dependency](rust/README.md) — crates.io release pending |
+| Flutter / Dart | [`sentroy_client_sdk`](flutter/) | [Git or path dependency](flutter/README.md) — pub.dev release pending |
 | cURL | — | [Examples](curl/) |
 
-All SDKs target the Mail and Storage APIs against the hosted platform (`https://sentroy.com`) or your own Sentroy deployment. The Rust SDK also covers WhatsApp, Identity, Env Vault and MCP; see each SDK's reference for its supported surface.
+All SDKs target the Mail and Storage APIs against the hosted platform (`https://sentroy.com`) or your own Sentroy deployment. The Rust and Flutter SDKs also cover WhatsApp, Identity, Env Vault and MCP; see each SDK's reference for its supported surface.
 
 ## Authentication
 
@@ -45,6 +46,7 @@ Each SDK ships a single comprehensive `AGENTS.md` reference — feed the raw URL
 ```
 https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/typescript/AGENTS.md
 https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/rust/AGENTS.md
+https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/flutter/AGENTS.md
 https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/go/README.md
 https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/python/README.md
 https://raw.githubusercontent.com/Sentroy-Co/client-sdk/refs/heads/main/php/README.md
@@ -61,7 +63,7 @@ https://docs.sentroy.com/skill.md        # Anthropic Skill format
 https://docs.sentroy.com/agents.md       # universal markdown
 ```
 
-> TypeScript and Rust have split `README.md` (lean, npm-facing) from `AGENTS.md` (full reference). The Go, Python, PHP and cURL READMEs remain comprehensive and double as agent-facing docs.
+> TypeScript, Rust and Flutter have split `README.md` (lean, npm-facing) from `AGENTS.md` (full reference). The Go, Python, PHP and cURL READMEs remain comprehensive and double as agent-facing docs.
 
 ## License
 
