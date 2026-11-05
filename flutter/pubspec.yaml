@@ -1,0 +1,21 @@
+name: sentroy_client_sdk
+description: Native Flutter client for Sentroy Mail, Storage, WhatsApp, Identity, Env Vault and MCP.
+version: 0.1.0
+homepage: https://docs.sentroy.com
+repository: https://github.com/Sentroy-Co/client-sdk/tree/main/flutter
+issue_tracker: https://github.com/Sentroy-Co/client-sdk/issues
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+  flutter: '>=3.32.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.6.0
+  http_parser: ^4.1.2
+  crypto: ^3.0.7
+  mcp_dart: ^2.4.3
+  jose: ^0.3.4
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -1,0 +1,4 @@
+analyzer:
+  exclude:
+    - web/**
+include: ../analysis_options.yaml

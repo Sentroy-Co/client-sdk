@@ -1,0 +1,60 @@
+name: Flutter SDK
+on:
+  pull_request:
+    paths: ['flutter/**', 'scripts/check_flutter_parity.py', 'scripts/check_rust_parity.py', 'typescript/src/**', '.github/workflows/flutter-sdk.yml']
+  push:
+    branches: [main]
+    paths: ['flutter/**', 'scripts/check_flutter_parity.py', 'scripts/check_rust_parity.py', 'typescript/src/**', '.github/workflows/flutter-sdk.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: flutter-sdk-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flutter: '3.32.0'
+            revision: be698c48a6750c8cb8e61c740ca9991bb947aba2
+          - flutter: '3.47.9'
+            revision: c197ca5199e9ee5661e865596c9c07294dfab51c
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Install Flutter SDK
+        run: |
+          git clone --depth 1 --branch '${{ matrix.flutter }}' https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          test "$(git -C "$RUNNER_TEMP/flutter" rev-parse HEAD)" = '${{ matrix.revision }}'
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" config --no-analytics
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+      - name: Resolve dependencies
+        working-directory: flutter
+        run: |
+          flutter pub get
+          cd example
+          flutter pub get
+      - name: Check API presence
+        run: python3 scripts/check_flutter_parity.py
+      - name: Analyze
+        working-directory: flutter
+        run: flutter analyze --no-pub
+      - name: Check formatting
+        if: matrix.flutter == '3.47.9'
+        working-directory: flutter
+        run: dart format --output=none --set-exit-if-changed lib test example/lib
+      - name: Test services and widgets
+        working-directory: flutter
+        run: flutter test --no-pub
+      - name: Validate publish archive
+        if: matrix.flutter == '3.47.9'
+        working-directory: flutter
+        run: flutter pub publish --dry-run
+      - name: Build Web example
+        if: matrix.flutter == '3.47.9'
+        working-directory: flutter/example
+        run: flutter build web --release --no-pub
